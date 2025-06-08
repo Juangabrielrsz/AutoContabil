@@ -1,8 +1,17 @@
-from PyQt5.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QMessageBox, QApplication
+from PyQt5.QtWidgets import (
+    QWidget,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QMessageBox,
+    QApplication,
+)
 from PyQt5.QtCore import pyqtSignal
 import sqlite3
 import sys
 from app.main_window import MainWindow
+
 
 class LoginScreen(QWidget):
     login_sucesso = pyqtSignal()
@@ -42,29 +51,36 @@ class LoginScreen(QWidget):
 
         conn = sqlite3.connect("app/database.db")
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             usuario TEXT NOT NULL,
             senha TEXT NOT NULL
         )
-        """)
+        """
+        )
 
         cursor.execute("SELECT COUNT(*) FROM usuarios")
         if cursor.fetchone()[0] == 0:
-            cursor.execute("INSERT INTO usuarios (usuario, senha) VALUES (?, ?)", ("admin", "1234"))
+            cursor.execute(
+                "INSERT INTO usuarios (usuario, senha) VALUES (?, ?)", ("admin", "1234")
+            )
             conn.commit()
 
-        cursor.execute("SELECT * FROM usuarios WHERE usuario = ? AND senha = ?", (usuario, senha))
+        cursor.execute(
+            "SELECT * FROM usuarios WHERE usuario = ? AND senha = ?", (usuario, senha)
+        )
         resultado = cursor.fetchone()
         conn.close()
 
         if resultado:
             self.main_window = MainWindow()  # Instancia a sua MainWindow
-            self.main_window.show()          # Mostra a MainWindow
-            self.close()                    # Fecha a janela de login
+            self.main_window.show()  # Mostra a MainWindow
+            self.close()  # Fecha a janela de login
         else:
             QMessageBox.warning(self, "Erro", "Usuário ou senha inválidos.")
+
 
 # Para testar o widget isoladamente
 if __name__ == "__main__":
@@ -72,4 +88,3 @@ if __name__ == "__main__":
     login = LoginScreen()
     login.show()
     sys.exit(app.exec())
-# # Fim do código
