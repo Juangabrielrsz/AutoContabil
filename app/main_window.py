@@ -1,5 +1,7 @@
 from PyQt5.QtWidgets import QMainWindow, QTabWidget, QWidget, QVBoxLayout, QLabel
 from app.tabs.tabs_notas_fiscais import TabsNotasFiscais
+from app.tabs.tabs_extratos import TabsExtratos
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -10,10 +12,9 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
 
-        # Aba Notas Fiscais
         self.tabs.addTab(TabsNotasFiscais(), "Notas Fiscais")
+        self.tabs.addTab(TabsExtratos(), "Extratos")
         # Outras abas com placeholder "em construção"
-        self.tabs.addTab(self.criar_aba("Extratos Bancários"), "Extratos")
         self.tabs.addTab(self.criar_aba("Fechamento Contábil"), "Fechamento")
         self.tabs.addTab(self.criar_aba("Departamento Pessoal"), "Dept. Pessoal")
         self.tabs.addTab(self.criar_aba("Relatórios"), "Relatórios")
