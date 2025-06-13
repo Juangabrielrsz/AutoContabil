@@ -34,6 +34,13 @@ class TabsExtratos(QWidget):
         self.filtro_layout.addWidget(self.label_cliente)
         self.filtro_layout.addWidget(self.combo_cliente)
 
+        self.label_cnpj = QLabel("CNPJ:")
+        self.input_cnpj = QLineEdit()
+        self.input_cnpj.setInputMask("00.000.000/0000-00")
+        self.input_cnpj.setPlaceholderText("Digite o CNPJ")
+        self.filtro_layout.addWidget(self.label_cnpj)
+        self.filtro_layout.addWidget(self.input_cnpj)
+
         self.label_data_inicio = QLabel("De:")
         self.data_inicio = QDateEdit()
         self.data_inicio.setCalendarPopup(True)
@@ -125,16 +132,21 @@ class TabsExtratos(QWidget):
         conn = sqlite3.connect("app/database.db")
         cursor = conn.cursor()
 
+        cnpj = self.input_cnpj.text().strip()
         tipo = self.combo_tipo.currentText()
         data_ini = self.data_inicio.date().toString("yyyy-MM-dd")
         data_fim = self.data_fim.date().toString("yyyy-MM-dd")
 
         query_base = """
-            SELECT id, cliente, descricao, data, tipo, valor 
-            FROM extratos 
-            WHERE data BETWEEN ? AND ?
+        SELECT id, cliente, cnpj, descricao, data, tipo, valor 
+        FROM extratos 
+        WHERE data BETWEEN ? AND ?
         """
         params = [data_ini, data_fim]
+
+        if cnpj:
+            query_base += " AND cnpj LIKE ?"
+            params.append(f"%{cnpj}%")
 
         if tipo != "Todos":
             query_base += " AND tipo = ?"
@@ -153,11 +165,11 @@ class TabsExtratos(QWidget):
         fim = inicio + self.registros_por_pagina
         dados = todos_dados[inicio:fim]
 
-        #   Preenchendo a tabela
+        # Preenchendo a tabela
         self.tabela.setRowCount(len(dados))
-        self.tabela.setColumnCount(6)
+        self.tabela.setColumnCount(7)
         self.tabela.setHorizontalHeaderLabels(
-            ["ID", "Cliente", "Descrição", "Data", "Tipo", "Valor"]
+            ["ID", "Cliente", "CNPJ", "Descrição", "Data", "Tipo", "Valor"]
         )
 
         total_entradas = 0.0
@@ -165,21 +177,31 @@ class TabsExtratos(QWidget):
 
         for i, row in enumerate(dados):
             for j, value in enumerate(row):
+                # Formatar CNPJ
+                if j == 2:  # Coluna CNPJ
+                    cnpj_num = "".join(filter(str.isdigit, str(value)))
+                    if len(cnpj_num) == 14:
+                        value = f"{cnpj_num[:2]}.{cnpj_num[2:5]}.{cnpj_num[5:8]}/{cnpj_num[8:12]}-{cnpj_num[12:]}"
+
                 item = QTableWidgetItem(str(value))
-                if j == 5:  # Coluna Valor
+
+                if j == 6:  # Coluna Valor
                     item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
                 self.tabela.setItem(i, j, item)
 
-        if row[4] == "Entrada":
-            total_entradas += float(row[5])
-        elif row[4] == "Saída":
-            total_saidas += float(row[5])
+            # Calcular totais depois que a linha inteira foi processada
+            if row[5] == "Entrada":
+                total_entradas += float(row[6])
+            elif row[5] == "Saída":
+                total_saidas += float(row[6])
 
-        # Totais e saldo
+            # ✅ Fora do loop
         self.label_entradas.setText(f"Entradas: R$ {total_entradas:,.2f}")
         self.label_saidas.setText(f"Saídas: R$ {total_saidas:,.2f}")
         self.label_saldo.setText(f"Saldo: R$ {total_entradas - total_saidas:,.2f}")
 
+        # Ajustes visuais e navegação
         self.tabela.resizeColumnsToContents()
         self.tabela.setSortingEnabled(True)
 
@@ -209,6 +231,8 @@ class TabsExtratos(QWidget):
         layout = QVBoxLayout()
 
         input_cliente = QLineEdit()
+        input_cnpj = QLineEdit()
+        input_cnpj.setInputMask("00.000.000/0000-00")
         input_descricao = QLineEdit()
         input_data = QDateEdit()
         input_data.setCalendarPopup(True)
@@ -221,6 +245,9 @@ class TabsExtratos(QWidget):
 
         layout.addWidget(QLabel("Cliente"))
         layout.addWidget(input_cliente)
+        label_cnpj = QLabel("CNPJ")
+        layout.addWidget(label_cnpj)
+        layout.addWidget(input_cnpj)
         layout.addWidget(QLabel("Descrição"))
         layout.addWidget(input_descricao)
         layout.addWidget(QLabel("Data"))
@@ -245,11 +272,12 @@ class TabsExtratos(QWidget):
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    INSERT INTO extratos (cliente, descricao, data, tipo, valor)
+                    INSERT INTO extratos (cliente,cnpj, descricao, data, tipo, valor)
                     VALUES (?, ?, ?, ?, ?)
                     """,
                     (
                         input_cliente.text(),
+                        input_cnpj.text(),
                         input_descricao.text(),
                         input_data.date().toString("yyyy-MM-dd"),
                         combo_tipo.currentText(),
@@ -313,16 +341,18 @@ class TabsExtratos(QWidget):
     def abrir_edicao_extrato(self, row, column):
         id_extrato = self.tabela.item(row, 0).text()
         cliente = self.tabela.item(row, 1).text()
-        descricao = self.tabela.item(row, 2).text()
-        data = self.tabela.item(row, 3).text()
-        tipo = self.tabela.item(row, 4).text()
-        valor = self.tabela.item(row, 5).text()
+        cnpj = self.tabela.item(row, 2).text()
+        descricao = self.tabela.item(row, 3).text()
+        data = self.tabela.item(row, 4).text()
+        tipo = self.tabela.item(row, 5).text()
+        valor = self.tabela.item(row, 6).text()
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Editar/Excluir Extrato")
         layout = QVBoxLayout()
 
         input_cliente = QLineEdit(cliente)
+        input_cnpj = QLineEdit(cnpj)
         input_descricao = QLineEdit(descricao)
         input_data = QDateEdit()
         input_data.setCalendarPopup(True)
@@ -336,6 +366,8 @@ class TabsExtratos(QWidget):
 
         layout.addWidget(QLabel("Cliente"))
         layout.addWidget(input_cliente)
+        layout.addWidget(QLabel("Cnpj"))
+        layout.addWidget(input_cnpj)
         layout.addWidget(QLabel("Descrição"))
         layout.addWidget(input_descricao)
         layout.addWidget(QLabel("Data"))
@@ -364,11 +396,12 @@ class TabsExtratos(QWidget):
                 cursor.execute(
                     """
                     UPDATE extratos
-                    SET cliente = ?, descricao = ?, data = ?, tipo = ?, valor = ?
+                    SET cliente = ?,cnpj = ?, descricao = ?, data = ?, tipo = ?, valor = ?
                     WHERE id = ?
                     """,
                     (
                         input_cliente.text(),
+                        input_cnpj.text(),
                         input_descricao.text(),
                         input_data.date().toString("yyyy-MM-dd"),
                         combo_tipo.currentText(),
