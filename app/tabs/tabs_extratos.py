@@ -113,8 +113,11 @@ class TabsExtratos(QWidget):
         self.carregar_dados()
         self.layout_navegacao = QHBoxLayout()
 
+    def get_caminho_banco(self):
+        return r"C:\Users\juang\OneDrive\Área de Trabalho\automacao_contabil\app\database.db"
+
     def carregar_clientes(self):
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(self.get_caminho_banco())
         cursor = conn.cursor()
         cursor.execute("SELECT DISTINCT cliente FROM extratos ORDER BY cliente")
         clientes = cursor.fetchall()
@@ -126,16 +129,21 @@ class TabsExtratos(QWidget):
             self.combo_cliente.addItem(cliente[0])
 
     def carregar_dados(self):
-        caminho_banco = os.path.join(
-            os.path.dirname(__file__), "..", "app", "banco_dados.db"
-        )
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(self.get_caminho_banco())
         cursor = conn.cursor()
 
         cnpj = self.input_cnpj.text().strip()
         tipo = self.combo_tipo.currentText()
         data_ini = self.data_inicio.date().toString("yyyy-MM-dd")
         data_fim = self.data_fim.date().toString("yyyy-MM-dd")
+
+        if data_ini > data_fim:
+            QMessageBox.warning(
+                self,
+                "Filtro Inválido",
+                "Data de início não pode ser maior que a data final.",
+            )
+            return
 
         query_base = """
         SELECT id, cliente, cnpj, descricao, data, tipo, valor 
@@ -145,10 +153,10 @@ class TabsExtratos(QWidget):
         params = [data_ini, data_fim]
 
         if cnpj:
-            query_base += " AND cnpj LIKE ?"
-            params.append(f"%{cnpj}%")
-
-        if tipo != "Todos":
+            cnpj_digits = "".join(filter(str.isdigit, cnpj))
+            query_base += " AND REPLACE(REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '-', ''), '/', ''), ' ', '') LIKE ?"
+            params.append(f"%{cnpj_digits}%")
+        if tipo in ["Entrada", "Saída"]:  # Filtra apenas se for válido
             query_base += " AND tipo = ?"
             params.append(tipo)
 
@@ -181,7 +189,10 @@ class TabsExtratos(QWidget):
                 if j == 2:  # Coluna CNPJ
                     cnpj_num = "".join(filter(str.isdigit, str(value)))
                     if len(cnpj_num) == 14:
-                        value = f"{cnpj_num[:2]}.{cnpj_num[2:5]}.{cnpj_num[5:8]}/{cnpj_num[8:12]}-{cnpj_num[12:]}"
+                        inscricao = cnpj_num[:8]
+                        filial = cnpj_num[8:12]
+                        dv = cnpj_num[12:]
+                        value = f"{inscricao[:2]}.{inscricao[2:5]}.{inscricao[5:]}/{filial}-{dv}"
 
                 item = QTableWidgetItem(str(value))
 
@@ -268,12 +279,12 @@ class TabsExtratos(QWidget):
 
         def salvar():
             try:
-                conn = sqlite3.connect("app/database.db")
+                conn = sqlite3.connect(self.get_caminho_banco())
                 cursor = conn.cursor()
                 cursor.execute(
                     """
-                    INSERT INTO extratos (cliente,cnpj, descricao, data, tipo, valor)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO extratos (cliente, cnpj, descricao, data, tipo, valor)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (
                         input_cliente.text(),
@@ -302,7 +313,7 @@ class TabsExtratos(QWidget):
         data_inicio = self.data_inicio.date().toString("yyyy-MM-dd")
         data_fim = self.data_fim.date().toString("yyyy-MM-dd")
 
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(self.get_caminho_banco())
 
         if cliente_filtro == "Todos":
             query = "SELECT * FROM extratos WHERE data BETWEEN ? AND ?"
@@ -353,6 +364,8 @@ class TabsExtratos(QWidget):
 
         input_cliente = QLineEdit(cliente)
         input_cnpj = QLineEdit(cnpj)
+        input_cnpj.setMaxLength(18)
+        input_cnpj.setInputMask("00.000.000/0000-00;_")
         input_descricao = QLineEdit(descricao)
         input_data = QDateEdit()
         input_data.setCalendarPopup(True)
@@ -391,7 +404,7 @@ class TabsExtratos(QWidget):
         def salvar():
             try:
                 valor_float = float(input_valor.text().replace(",", "."))
-                conn = sqlite3.connect("app/database.db")
+                conn = sqlite3.connect(self.get_caminho_banco())
                 cursor = conn.cursor()
                 cursor.execute(
                     """
@@ -424,7 +437,7 @@ class TabsExtratos(QWidget):
                 QMessageBox.Yes | QMessageBox.No,
             )
             if confirm == QMessageBox.Yes:
-                conn = sqlite3.connect("app/database.db")
+                conn = sqlite3.connect(self.get_caminho_banco())
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM extratos WHERE id = ?", (id_extrato,))
                 conn.commit()
