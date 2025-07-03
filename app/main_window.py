@@ -3,6 +3,7 @@ from app.tabs.tabs_notas_fiscais import TabsNotasFiscais
 from app.tabs.tabs_extratos import TabsExtratos
 from app.tabs.tabs_mei import TabsMei
 from app.tabs.tabs_fechamento import TabsFechamento
+from app.tabs.tabs_dp import TabsDP
 
 
 class MainWindow(QMainWindow):
@@ -18,8 +19,8 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(TabsExtratos(), "Extratos")
         self.tabs.addTab(TabsMei(), "Mei")
         self.tabs.addTab(TabsFechamento(), "Fechamento Contábil")
+        self.tabs.addTab(TabsDP(), "Departamento Pessoal")
         # Outras abas com placeholder "em construção"
-        self.tabs.addTab(self.criar_aba("Departamento Pessoal"), "Dept. Pessoal")
         self.tabs.addTab(self.criar_aba("Relatórios"), "Relatórios")
 
     def criar_aba(self, nome):
