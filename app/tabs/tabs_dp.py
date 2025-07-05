@@ -20,6 +20,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from app.tabs.folhas_geradas_dialog import FolhasGeradasDialog
+from app.tabs.colaborador_dialog import ColaboradorDialog
 
 
 class TabsDP(QWidget):
@@ -50,12 +51,14 @@ class TabsDP(QWidget):
 
         # Tabela de colaboradores
         self.tabela = QTableWidget()
-        self.tabela.setColumnCount(10)
+        self.tabela.setColumnCount(12)
         self.tabela.setHorizontalHeaderLabels(
             [
                 "Nome",
                 "CPF",
                 "CNPJ Empresa",
+                "Empresa",
+                "Escritório",
                 "Cargo",
                 "Salário",
                 "Tipo Contrato",
@@ -77,7 +80,7 @@ class TabsDP(QWidget):
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT id, nome, cpf, cnpj_empresa, cargo, salario,
+            SELECT id, nome, cpf, cnpj_empresa, empresa, escritorio, cargo, salario,
                    tipo_contrato, data_admissao, data_demissao, observacoes
             FROM colaboradores
         """
@@ -87,7 +90,7 @@ class TabsDP(QWidget):
 
         self.tabela.setRowCount(len(dados))
         for i, row in enumerate(dados):
-            for j, value in enumerate(row[1:]):
+            for j, value in enumerate(row[1:11]):
                 item = QTableWidgetItem(str(value) if value else "")
                 self.tabela.setItem(i, j, item)
 
@@ -114,9 +117,9 @@ class TabsDP(QWidget):
 
             cell_widget = QWidget()
             cell_widget.setLayout(botoes_layout)
-            self.tabela.setCellWidget(i, 9, cell_widget)
+            self.tabela.setCellWidget(i, 11, cell_widget)
             self.tabela.setColumnWidth(2, 160)
-            self.tabela.setColumnWidth(9, 340)
+            self.tabela.setColumnWidth(11, 350)
 
     def abrir_dialogo_folha(self, colaborador):
         dialog = QDialog(self)
@@ -148,23 +151,25 @@ class TabsDP(QWidget):
             data_pag = input_data_pagamento.date().toString("yyyy-MM-dd")
             beneficios = input_beneficios.value()
             descontos = input_descontos.value()
-            salario_base = colaborador[5]
+            salario_base = float(colaborador[7])
             salario_liquido = salario_base + beneficios - descontos
 
             conn = sqlite3.connect("app/database.db")
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO folha_pagamento
-                (colaborador_id, nome, cpf, cargo, salario_base, data_pagamento,
-                beneficios, descontos, salario_liquido)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
+            INSERT INTO folha_pagamento
+            (colaborador_id, nome, cpf, empresa, escritorio, cargo, salario_base, data_pagamento,
+            beneficios, descontos, salario_liquido)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
                 (
-                    colaborador[0],
-                    colaborador[1],
-                    colaborador[2],
-                    colaborador[4],
+                    colaborador[0],  # id
+                    colaborador[1],  # nome
+                    colaborador[2],  # cpf
+                    colaborador[4],  # empresa
+                    colaborador[5],  # escritório
+                    colaborador[6],  # cargo
                     salario_base,
                     data_pag,
                     beneficios,
@@ -174,9 +179,15 @@ class TabsDP(QWidget):
             )
             conn.commit()
             conn.close()
+            print("Cargo:", colaborador[6])
 
             self.gerar_pdf_holerite_detalhado(
-                colaborador, data_pag, beneficios, descontos, salario_liquido
+                colaborador,
+                data_pag,
+                beneficios,
+                descontos,
+                salario_liquido,
+                salario_base,
             )
             QMessageBox.information(
                 self, "Sucesso", "Folha gerada e holerite exportado com sucesso."
@@ -187,9 +198,49 @@ class TabsDP(QWidget):
         dialog.exec_()
 
     def gerar_pdf_holerite_detalhado(
-        self, colaborador, data_pagamento, beneficios, descontos, salario_liquido
+        self,
+        colaborador,
+        data_pagamento,
+        beneficios,
+        descontos,
+        salario_liquido,
+        salario_base,
     ):
         from reportlab.lib.colors import black, grey
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+        import locale
+
+        locale.setlocale(locale.LC_ALL, "pt_BR.UTF-8")
+
+        # Calcular INSS e IRRF
+        def calcular_inss(salario):
+            if salario <= 1302.00:
+                return salario * 0.075
+            elif salario <= 2571.29:
+                return salario * 0.09
+            elif salario <= 3856.94:
+                return salario * 0.12
+            elif salario <= 7507.49:
+                return salario * 0.14
+            else:
+                return 7507.49 * 0.14  # teto
+
+        def calcular_irrf(salario_base, inss):
+            base_irrf = salario_base - inss
+            if base_irrf <= 1903.98:
+                return 0.0
+            elif base_irrf <= 2826.65:
+                return base_irrf * 0.075 - 142.80
+            elif base_irrf <= 3751.05:
+                return base_irrf * 0.15 - 354.80
+            elif base_irrf <= 4664.68:
+                return base_irrf * 0.225 - 636.13
+            else:
+                return base_irrf * 0.275 - 869.36
+
+        inss = calcular_inss(salario_base)
+        irrf = calcular_irrf(salario_base, inss)
 
         nome_arquivo = (
             f"holerite_{colaborador[1].replace(' ', '_')}_{data_pagamento}.pdf"
@@ -197,10 +248,9 @@ class TabsDP(QWidget):
         c = canvas.Canvas(nome_arquivo, pagesize=A4)
         largura, altura = A4
 
-        # Cabeçalho
         y = altura - 20 * mm
         c.setFont("Helvetica-Bold", 10)
-        c.drawString(20 * mm, y, "EMPRESA EXEMPLO LTDA - ME")
+        c.drawString(20 * mm, y, colaborador[4])  # empresa
         c.setFont("Helvetica", 9)
         c.drawString(20 * mm, y - 5 * mm, "CNPJ: 00.000.000/0001-00")
         c.drawString(100 * mm, y - 5 * mm, "CC: GERAL")
@@ -208,18 +258,17 @@ class TabsDP(QWidget):
         c.drawString(160 * mm, y - 10 * mm, "Folha Mensal")
         c.drawString(160 * mm, y - 15 * mm, f"{data_pagamento[-7:]}")
 
-        # Dados do funcionário
         y -= 25 * mm
         c.setFont("Helvetica-Bold", 9)
-        c.drawString(20 * mm, y, f"{colaborador[1]}")
+        c.drawString(20 * mm, y, f"{colaborador[1]}")  # nome
         c.setFont("Helvetica", 9)
-        c.drawString(20 * mm, y - 5 * mm, f"{colaborador[4]}")
+        c.drawString(20 * mm, y - 5 * mm, f"{colaborador[6]}")  # cargo correto
         c.drawString(100 * mm, y, "CBO: 422110")
         c.drawString(100 * mm, y - 5 * mm, "Departamento: 1")
         c.drawString(140 * mm, y - 5 * mm, "Filial: 1")
-        c.drawString(100 * mm, y - 10 * mm, f"Admissão: {colaborador[7]}")
+        c.drawString(100 * mm, y - 10 * mm, f"Admissão: {data_pagamento}")
 
-        # Tabela de Proventos e Descontos com linhas
+        # Cabeçalho da tabela
         y -= 25 * mm
         c.setFont("Helvetica-Bold", 8)
         headers = ["Código", "Descrição", "Referência", "Vencimentos", "Descontos"]
@@ -227,17 +276,17 @@ class TabsDP(QWidget):
         for i, header in enumerate(headers):
             c.drawString(x_positions[i] * mm, y, header)
 
-        # Linhas da tabela
         y -= 6 * mm
         c.setStrokeColor(grey)
-        c.line(20 * mm, y + 5 * mm, 190 * mm, y + 5 * mm)  # linha horizontal superior
+        c.line(20 * mm, y + 5 * mm, 190 * mm, y + 5 * mm)
 
         rubricas = [
-            ("8781", "SALÁRIO", "30,00", f"{colaborador[5]:,.2f}", ""),
+            ("8781", "SALÁRIO", "30,00", f"{salario_base:,.2f}", ""),
             ("995", "SALÁRIO FAMÍLIA", "31,71", f"{beneficios:,.2f}", ""),
-            ("998", "INSS", "8,00", "", "87,56"),
+            ("998", "I.N.S.S.", "8,00", "", f"{inss:,.2f}"),
             ("993", "DESCONTO", "0,54", "", f"{descontos:,.2f}"),
             ("048", "VALE TRANSPORTE", "6,00", "", "65,67"),
+            ("999", "IRRF", "Base IR", "", f"{irrf:,.2f}"),
         ]
 
         c.setFont("Helvetica", 8)
@@ -250,36 +299,32 @@ class TabsDP(QWidget):
                 c.drawRightString((x_positions[3] + 20) * mm, row_y, venc)
             if descs:
                 c.drawRightString((x_positions[4] + 30) * mm, row_y, descs)
-
-            # Linha abaixo da linha atual
             c.line(20 * mm, row_y - 1 * mm, 190 * mm, row_y - 1 * mm)
 
         y = row_y - 10 * mm
+        total_venc = salario_base + beneficios
+        total_desc = descontos + inss + irrf + 65.67
 
-        # Totais
         c.setFont("Helvetica-Bold", 8)
         c.drawString(100 * mm, y, "Total de Vencimentos:")
-        c.drawRightString(145 * mm, y, f"{colaborador[5] + beneficios:,.2f}")
+        c.drawRightString(145 * mm, y, f"{total_venc:,.2f}")
         y -= 5 * mm
         c.drawString(100 * mm, y, "Total de Descontos:")
-        c.drawRightString(180 * mm, y, f"{descontos + 87.56 + 65.67:,.2f}")
+        c.drawRightString(180 * mm, y, f"{total_desc:,.2f}")
         y -= 10 * mm
         c.drawString(100 * mm, y, "Valor Líquido:")
         c.drawRightString(180 * mm, y, f"{salario_liquido:,.2f}")
 
-        # Bases de cálculo
         y -= 15 * mm
         c.setFont("Helvetica", 8)
-        c.drawString(20 * mm, y, f"Salário Base: {colaborador[5]:,.2f}")
-        c.drawString(60 * mm, y, f"Base INSS: {colaborador[5]:,.2f}")
-        c.drawString(100 * mm, y, f"Base FGTS: {colaborador[5]:,.2f}")
-        c.drawString(140 * mm, y, f"FGTS do mês: 87,56")
-
+        c.drawString(20 * mm, y, f"Salário Base: {salario_base:,.2f}")
+        c.drawString(60 * mm, y, f"Base INSS: {salario_base:,.2f}")
+        c.drawString(100 * mm, y, f"Base FGTS: {salario_base:,.2f}")
+        c.drawString(140 * mm, y, "FGTS do mês: 87,56")
         y -= 6 * mm
-        c.drawString(20 * mm, y, "Base IRRF: 817,35")
-        c.drawString(60 * mm, y, "IRRF: 0,00")
-
-        # Assinatura na mesma linha da data
+        base_irrf = salario_base - inss
+        c.drawString(20 * mm, y, f"Base IRRF: {base_irrf:,.2f}")
+        c.drawString(60 * mm, y, f"IRRF: {irrf:,.2f}")
         y -= 20 * mm
         c.drawString(20 * mm, y, "Assinatura do Funcionário:")
         c.line(60 * mm, y, 120 * mm, y)
@@ -292,14 +337,14 @@ class TabsDP(QWidget):
         dialog.exec_()
 
     def abrir_dialogo_cadastro(self):
-        QMessageBox.information(
-            self, "Aviso", "Funcionalidade de cadastro em desenvolvimento."
-        )
+        dialog = ColaboradorDialog(self)
+        if dialog.exec_():
+            self.carregar_dados()
 
     def abrir_dialogo_edicao(self, colaborador):
-        QMessageBox.information(
-            self, "Aviso", "Funcionalidade de edição em desenvolvimento."
-        )
+        dialog = ColaboradorDialog(self, colaborador)
+        if dialog.exec_():
+            self.carregar_dados()
 
     def excluir_colaborador(self, colaborador_id):
         resposta = QMessageBox.question(
@@ -355,26 +400,41 @@ class TabsDP(QWidget):
         QMessageBox.information(self, "Exportado", "PDF gerado com sucesso.")
 
     def abrir_detalhes_colaborador(self, row, column):
-        nome = self.tabela.item(row, 0).text()
-        cpf = self.tabela.item(row, 1).text()
+        nome_item = self.tabela.item(row, 0)
+        nome = nome_item.text() if nome_item else ""
+
+        cpf_item = self.tabela.item(row, 1)
+        cpf = cpf_item.text() if cpf_item else ""
+
         cnpj = self.tabela.item(row, 2).text()
-        cargo = self.tabela.item(row, 3).text()
-        salario = self.tabela.item(row, 4).text()
-        contrato = self.tabela.item(row, 5).text()
-        admissao = self.tabela.item(row, 6).text()
-        demissao = self.tabela.item(row, 7).text()
-        obs = self.tabela.item(row, 8).text()
+        empresa = self.tabela.item(row, 3).text()
+        escritorio = self.tabela.item(row, 4).text()
+        cargo = self.tabela.item(row, 5).text()
+        salario = self.tabela.item(row, 6).text()
+        contrato = self.tabela.item(row, 7).text()
+        admissao = self.tabela.item(row, 8).text()
+        demissao = self.tabela.item(row, 9).text()
+        obs_item = self.tabela.item(row, 10)
+        obs = obs_item.text() if obs_item else ""
 
         detalhes = (
-            f"👤 Nome: {nome}\n"
-            f"🪪 CPF: {cpf}\n"
-            f"🏢 CNPJ Empresa: {cnpj}\n"
-            f"📌 Cargo: {cargo}\n"
-            f"💰 Salário: R$ {salario}\n"
-            f"📄 Tipo de Contrato: {contrato}\n"
-            f"📆 Admissão: {admissao}\n"
-            f"📆 Demissão: {demissao}\n"
-            f"📝 Observações: {obs}"
+            f"<b>👤 Nome:</b> {nome}<br>"
+            f"<b>🪪 CPF:</b> {cpf}<br>"
+            f"<b>🏢 CNPJ Empresa:</b> {cnpj}<br>"
+            f"<b>🏭 Empresa:</b> {empresa}<br>"
+            f"<b>🏢 Escritório:</b> {escritorio}<br>"
+            f"<b>📌 Cargo:</b> {cargo}<br>"
+            f"<b>💰 Salário:</b> R$ {salario}<br>"
+            f"<b>📄 Tipo de Contrato:</b> {contrato}<br>"
+            f"<b>📆 Admissão:</b> {admissao}<br>"
+            f"<b>📆 Demissão:</b> {demissao}<br>"
+            f"<b>📝 Observações:</b><br>{obs}"
         )
+
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Detalhes do Colaborador")
+        msg.setTextFormat(Qt.RichText)
+        msg.setText(detalhes)
+        msg.exec_()
 
         QMessageBox.information(self, "Detalhes do Colaborador", detalhes)
