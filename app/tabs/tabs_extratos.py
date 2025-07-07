@@ -73,6 +73,7 @@ class TabsExtratos(QWidget):
         self.tabela = QTableWidget()
         self.layout.addWidget(self.tabela)
         self.tabela.cellDoubleClicked.connect(self.abrir_edicao_extrato)
+        self.tabela.verticalHeader().setDefaultSectionSize(40)
 
         # Navegação de páginas
         self.layout_navegacao = QHBoxLayout()

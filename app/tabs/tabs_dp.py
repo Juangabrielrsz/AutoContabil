@@ -12,6 +12,9 @@ from PyQt5.QtWidgets import (
     QDateEdit,
     QDoubleSpinBox,
     QSizePolicy,
+    QLineEdit,
+    QLabel,
+    QCompleter,
 )
 from PyQt5.QtCore import Qt, QDate
 import sqlite3
@@ -31,6 +34,37 @@ class TabsDP(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
+        # Campo de filtro por Nome ou CPF (parte superior)
+        filtro_layout = QHBoxLayout()
+        filtro_layout.addWidget(QLabel("Nome/CPF:"))
+
+        self.input_nome_cpf = QLineEdit()
+        self.input_nome_cpf.setPlaceholderText("Digite Nome ou CPF do Colaborador")
+        self.input_nome_cpf.setMaximumWidth(220)
+        filtro_layout.addWidget(self.input_nome_cpf)
+        filtro_layout.addStretch()  # empurra os elementos para a esquerda
+
+        # Autocomplete com nomes e CPFs únicos
+        conn = sqlite3.connect("app/database.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT nome, cpf FROM folha_pagamento")
+        resultados = cursor.fetchall()
+        conn.close()
+
+        opcoes = set()
+        for nome, cpf in resultados:
+            if nome:
+                opcoes.add(nome.strip())
+            if cpf:
+                opcoes.add(cpf.strip())
+
+        completer = QCompleter(sorted(opcoes))
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchContains)
+        self.input_nome_cpf.setCompleter(completer)
+
+        layout.addLayout(filtro_layout)
+
         # Botões principais
         botoes_layout = QHBoxLayout()
         btn_adicionar = QPushButton("Adicionar Colaborador")
@@ -47,9 +81,10 @@ class TabsDP(QWidget):
         botoes_layout.addWidget(btn_exportar_excel)
         botoes_layout.addWidget(btn_exportar_pdf)
         botoes_layout.addWidget(btn_ver_folhas)
+
         layout.addLayout(botoes_layout)
 
-        # Tabela de colaboradores
+        # Tabela
         self.tabela = QTableWidget()
         self.tabela.setColumnCount(12)
         self.tabela.setHorizontalHeaderLabels(
@@ -68,6 +103,7 @@ class TabsDP(QWidget):
                 "Ações",
             ]
         )
+        self.tabela.verticalHeader().setDefaultSectionSize(40)
         self.tabela.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout.addWidget(self.tabela)
 
@@ -91,7 +127,15 @@ class TabsDP(QWidget):
         self.tabela.setRowCount(len(dados))
         for i, row in enumerate(dados):
             for j, value in enumerate(row[1:11]):
-                item = QTableWidgetItem(str(value) if value else "")
+                if j == 7 and value is not None:
+                    valor_formatado = (
+                        f"R$ {value:,.2f}".replace(",", "X")
+                        .replace(".", ",")
+                        .replace("X", ".")
+                    )
+                    item = QTableWidgetItem(valor_formatado)
+                else:
+                    item = QTableWidgetItem(str(value) if value else "")
                 self.tabela.setItem(i, j, item)
 
             # Botões
@@ -344,6 +388,7 @@ class TabsDP(QWidget):
     def abrir_dialogo_edicao(self, colaborador):
         dialog = ColaboradorDialog(self, colaborador)
         if dialog.exec_():
+
             self.carregar_dados()
 
     def excluir_colaborador(self, colaborador_id):

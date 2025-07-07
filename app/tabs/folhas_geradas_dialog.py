@@ -7,8 +7,12 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QMessageBox,
     QWidget,
-    QFileDialog,
+    QFormLayout,
+    QDoubleSpinBox,
+    QDateEdit,
 )
+from PyQt5.QtCore import QDate
+from PyQt5.QtWidgets import QSizePolicy
 import sqlite3
 import pandas as pd
 from reportlab.pdfgen import canvas
@@ -42,6 +46,7 @@ class FolhasGeradasDialog(QDialog):
             ]
         )
         layout.addWidget(self.tabela)
+        self.tabela.verticalHeader().setDefaultSectionSize(40)
 
         self.carregar_dados()
 
@@ -69,6 +74,28 @@ class FolhasGeradasDialog(QDialog):
             btn_excluir = QPushButton("Excluir")
             btn_exportar = QPushButton("Exportar PDF")
 
+            # Tamanhos mínimos
+            btn_editar.setMinimumWidth(90)
+            btn_excluir.setMinimumWidth(90)
+            btn_exportar.setMinimumWidth(110)
+
+            # Layout de botões
+            acoes_layout = QHBoxLayout()
+            acoes_layout.setContentsMargins(0, 0, 0, 0)
+            acoes_layout.setSpacing(5)
+            acoes_layout.addWidget(btn_editar)
+            acoes_layout.addWidget(btn_excluir)
+            acoes_layout.addWidget(btn_exportar)
+
+            container = QWidget()
+            container.setLayout(acoes_layout)
+
+            # Força o widget a expandir horizontalmente
+            container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+            self.tabela.setCellWidget(i, 8, container)
+            self.tabela.setColumnWidth(8, 360)
+
             btn_editar.clicked.connect(lambda _, r=folha: self.editar_folha(r))
             btn_excluir.clicked.connect(lambda _, id=folha[0]: self.excluir_folha(id))
             btn_exportar.clicked.connect(lambda _, r=folha: self.exportar_pdf(r))
@@ -81,11 +108,63 @@ class FolhasGeradasDialog(QDialog):
             container = QWidget()
             container.setLayout(acoes_layout)
             self.tabela.setCellWidget(i, 8, container)
+            self.tabela.setColumnWidth(8, 350)
 
     def editar_folha(self, folha):
-        QMessageBox.information(
-            self, "Aviso", "Funcionalidade de edição ainda será implementada."
-        )
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Editar Folha de Pagamento")
+        layout = QFormLayout(dialog)
+
+        input_salario = QDoubleSpinBox()
+        input_salario.setMaximum(100000)
+        input_salario.setValue(float(folha[4]))  # salário_base
+
+        input_beneficios = QDoubleSpinBox()
+        input_beneficios.setMaximum(100000)
+        input_beneficios.setValue(float(folha[6]))  # benefícios
+
+        input_descontos = QDoubleSpinBox()
+        input_descontos.setMaximum(100000)
+        input_descontos.setValue(float(folha[7]))  # descontos
+
+        input_data = QDateEdit()
+        input_data.setCalendarPopup(True)
+        input_data.setDate(QDate.fromString(folha[5], "yyyy-MM-dd"))
+
+        btn_salvar = QPushButton("Salvar")
+
+        layout.addRow("Salário Base:", input_salario)
+        layout.addRow("Benefícios:", input_beneficios)
+        layout.addRow("Descontos:", input_descontos)
+        layout.addRow("Data de Pagamento:", input_data)
+        layout.addRow(btn_salvar)
+
+        def salvar_alteracoes():
+            salario = input_salario.value()
+            beneficios = input_beneficios.value()
+            descontos = input_descontos.value()
+            data_pagamento = input_data.date().toString("yyyy-MM-dd")
+            liquido = salario + beneficios - descontos
+
+            conn = sqlite3.connect("app/database.db")
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE folha_pagamento
+                SET salario_base = ?, beneficios = ?, descontos = ?, data_pagamento = ?, salario_liquido = ?
+                WHERE id = ?
+                """,
+                (salario, beneficios, descontos, data_pagamento, liquido, folha[0]),
+            )
+            conn.commit()
+            conn.close()
+
+            QMessageBox.information(self, "Sucesso", "Folha atualizada com sucesso.")
+            dialog.accept()
+            self.carregar_dados()
+
+        btn_salvar.clicked.connect(salvar_alteracoes)
+        dialog.exec_()
 
     def excluir_folha(self, folha_id):
         confirm = QMessageBox.question(

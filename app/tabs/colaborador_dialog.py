@@ -7,8 +7,9 @@ from PyQt5.QtWidgets import (
     QDateEdit,
     QDoubleSpinBox,
     QPushButton,
+    QMessageBox,
 )
-from PyQt5.QtCore import QDate
+from PyQt5.QtCore import QDate, QLocale
 import sqlite3
 
 
@@ -24,18 +25,25 @@ class ColaboradorDialog(QDialog):
 
         self.input_nome = QLineEdit()
         self.input_cpf = QLineEdit()
+        self.input_cpf.setInputMask("000.000.000-00;_")
         self.input_cnpj = QLineEdit()
+        self.input_cnpj.setInputMask("00.000.000/0000-00;_")
         self.input_empresa = QLineEdit()
         self.input_escritorio = QLineEdit()
         self.input_cargo = QLineEdit()
         self.input_salario = QDoubleSpinBox()
         self.input_salario.setMaximum(999999.99)
+        self.input_salario.setDecimals(2)
+        self.input_salario.setLocale(QLocale(QLocale.Portuguese, QLocale.Brazil))
+        self.input_salario.setPrefix("R$ ")
         self.input_contrato = QComboBox()
         self.input_contrato.addItems(["CLT", "PJ", "Estágio", "Outros"])
         self.input_admissao = QDateEdit()
         self.input_admissao.setCalendarPopup(True)
+        self.input_admissao.dateChanged.connect(self.validar_datas)
         self.input_demissao = QDateEdit()
         self.input_demissao.setCalendarPopup(True)
+        self.input_demissao.dateChanged.connect(self.validar_datas)
         self.input_demissao.setDate(QDate(2000, 1, 1))
         self.input_obs = QTextEdit()
 
@@ -59,6 +67,18 @@ class ColaboradorDialog(QDialog):
 
         if self.colaborador:
             self.preencher_dados()
+
+    def validar_datas(self):
+        data_admissao = self.input_admissao.date()
+        data_demissao = self.input_demissao.date()
+
+        if data_demissao < data_admissao:
+            QMessageBox.warning(
+                self,
+                "Data inválida",
+                "A data de demissão não pode ser anterior à data de admissão.",
+            )
+            self.input_demissao.setDate(data_admissao)
 
     def preencher_dados(self):
         c = self.colaborador
@@ -114,6 +134,11 @@ class ColaboradorDialog(QDialog):
             """,
                 dados,
             )
+        if self.input_demissao.date() < self.input_admissao.date():
+            QMessageBox.warning(
+                self, "Erro", "Data de demissão não pode ser anterior à de admissão."
+            )
+            return
 
         conn.commit()
         conn.close()
