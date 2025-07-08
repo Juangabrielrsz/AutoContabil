@@ -127,15 +127,7 @@ class TabsDP(QWidget):
         self.tabela.setRowCount(len(dados))
         for i, row in enumerate(dados):
             for j, value in enumerate(row[1:11]):
-                if j == 7 and value is not None:
-                    valor_formatado = (
-                        f"R$ {value:,.2f}".replace(",", "X")
-                        .replace(".", ",")
-                        .replace("X", ".")
-                    )
-                    item = QTableWidgetItem(valor_formatado)
-                else:
-                    item = QTableWidgetItem(str(value) if value else "")
+                item = QTableWidgetItem(str(value) if value else "")
                 self.tabela.setItem(i, j, item)
 
             # Botões
