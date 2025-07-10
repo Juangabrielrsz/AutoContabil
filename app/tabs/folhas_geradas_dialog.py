@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import QDate
 from PyQt5.QtWidgets import QSizePolicy
+from app.tabs.gerar_pdf_holerite import gerar_pdf_holerite
 import sqlite3
 import pandas as pd
 from reportlab.pdfgen import canvas
@@ -180,44 +181,35 @@ class FolhasGeradasDialog(QDialog):
             self.carregar_dados()
 
     def exportar_pdf(self, folha):
-        nome_arquivo = f"holerite_{folha[1].replace(' ', '_')}_{folha[5]}.pdf"
-        c = canvas.Canvas(nome_arquivo, pagesize=A4)
-        largura, altura = A4
-        y = altura - 30 * mm
-
-        c.setFont("Helvetica-Bold", 14)
-        c.drawString(30 * mm, y, "Recibo de Pagamento de Salário")
-
-        y -= 15 * mm
-        c.setFont("Helvetica", 10)
-        c.drawString(30 * mm, y, f"Nome: {folha[1]}")
-        y -= 6 * mm
-        c.drawString(30 * mm, y, f"CPF: {folha[2]}")
-        y -= 6 * mm
-        c.drawString(30 * mm, y, f"Cargo: {folha[3]}")
-        y -= 6 * mm
-        c.drawString(30 * mm, y, f"Data de Pagamento: {folha[5]}")
-
-        y -= 15 * mm
-        c.setFont("Helvetica-Bold", 10)
-        c.drawString(30 * mm, y, "Demonstrativo de Pagamento")
-
-        y -= 10 * mm
-        c.setFont("Helvetica", 10)
-        c.drawString(30 * mm, y, f"Salário Base: R$ {folha[4]:,.2f}")
-        y -= 6 * mm
-        c.drawString(30 * mm, y, f"Benefícios: R$ {folha[6]:,.2f}")
-        y -= 6 * mm
-        c.drawString(30 * mm, y, f"Descontos: R$ {folha[7]:,.2f}")
-        y -= 6 * mm
-        c.drawString(30 * mm, y, f"Salário Líquido: R$ {folha[8]:,.2f}")
-
-        y -= 20 * mm
-        c.drawString(
-            30 * mm, y, "Assinatura do Funcionário: ____________________________"
+        # Obter dados adicionais do colaborador
+        conn = sqlite3.connect("app/database.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT empresa, escritorio, data_admissao, cargo FROM colaboradores WHERE nome = ? AND cpf = ?",
+            (folha[1], folha[2]),
         )
+        colaborador_info = cursor.fetchone()
+        conn.close()
 
-        c.save()
-        QMessageBox.information(
-            self, "Exportado", f"Holerite salvo como: {nome_arquivo}"
-        )
+        if not colaborador_info:
+            QMessageBox.warning(self, "Erro", "Dados do colaborador não encontrados.")
+            return
+
+        empresa, escritorio, data_admissao, cargo = colaborador_info
+
+        folha_dict = {
+            "nome": folha[1],
+            "cpf": folha[2],
+            "cargo": cargo or folha[3],
+            "salario_base": folha[4],
+            "data_pagamento": folha[5],
+            "beneficios": folha[6],
+            "descontos": folha[7],
+            "salario_liquido": folha[8],
+            "data_admissao": data_admissao,
+            "empresa": empresa,
+            "escritorio": escritorio,
+        }
+
+        # Chama a função de geração
+        gerar_pdf_holerite(folha_dict)

@@ -17,6 +17,7 @@ from PyQt5.QtWidgets import (
     QCompleter,
 )
 from PyQt5.QtCore import Qt, QDate
+from app.tabs.gerar_pdf_holerite import gerar_pdf_holerite
 import sqlite3
 import pandas as pd
 from reportlab.pdfgen import canvas
@@ -180,7 +181,6 @@ class TabsDP(QWidget):
 
         btn_salvar = QPushButton("Gerar Holerite")
         layout.addRow(btn_salvar)
-
         dialog.setLayout(layout)
 
         def gerar():
@@ -190,15 +190,16 @@ class TabsDP(QWidget):
             salario_base = float(colaborador[7])
             salario_liquido = salario_base + beneficios - descontos
 
+            # Salvar no banco
             conn = sqlite3.connect("app/database.db")
             cursor = conn.cursor()
             cursor.execute(
                 """
-            INSERT INTO folha_pagamento
-            (colaborador_id, nome, cpf, empresa, escritorio, cargo, salario_base, data_pagamento,
-            beneficios, descontos, salario_liquido)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
+                INSERT INTO folha_pagamento
+                (colaborador_id, nome, cpf, empresa, escritorio, cargo, salario_base, data_pagamento,
+                beneficios, descontos, salario_liquido)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
                 (
                     colaborador[0],  # id
                     colaborador[1],  # nome
@@ -215,16 +216,25 @@ class TabsDP(QWidget):
             )
             conn.commit()
             conn.close()
-            print("Cargo:", colaborador[6])
 
-            self.gerar_pdf_holerite_detalhado(
-                colaborador,
-                data_pag,
-                beneficios,
-                descontos,
-                salario_liquido,
-                salario_base,
-            )
+            # Monta o dicionário para gerar PDF
+            folha_dict = {
+                "nome": colaborador[1],
+                "cpf": colaborador[2],
+                "cargo": colaborador[6],
+                "salario_base": salario_base,
+                "data_pagamento": data_pag,
+                "beneficios": beneficios,
+                "descontos": descontos,
+                "salario_liquido": salario_liquido,
+                "data_admissao": colaborador[8],
+                "empresa": colaborador[4],
+                "escritorio": colaborador[5],
+            }
+
+            # Gerar o PDF oficial
+            gerar_pdf_holerite(self, folha_dict)
+
             QMessageBox.information(
                 self, "Sucesso", "Folha gerada e holerite exportado com sucesso."
             )
@@ -232,141 +242,6 @@ class TabsDP(QWidget):
 
         btn_salvar.clicked.connect(gerar)
         dialog.exec_()
-
-    def gerar_pdf_holerite_detalhado(
-        self,
-        colaborador,
-        data_pagamento,
-        beneficios,
-        descontos,
-        salario_liquido,
-        salario_base,
-    ):
-        from reportlab.lib.colors import black, grey
-        from reportlab.lib.pagesizes import A4
-        from reportlab.pdfgen import canvas
-        import locale
-
-        locale.setlocale(locale.LC_ALL, "pt_BR.UTF-8")
-
-        # Calcular INSS e IRRF
-        def calcular_inss(salario):
-            if salario <= 1302.00:
-                return salario * 0.075
-            elif salario <= 2571.29:
-                return salario * 0.09
-            elif salario <= 3856.94:
-                return salario * 0.12
-            elif salario <= 7507.49:
-                return salario * 0.14
-            else:
-                return 7507.49 * 0.14  # teto
-
-        def calcular_irrf(salario_base, inss):
-            base_irrf = salario_base - inss
-            if base_irrf <= 1903.98:
-                return 0.0
-            elif base_irrf <= 2826.65:
-                return base_irrf * 0.075 - 142.80
-            elif base_irrf <= 3751.05:
-                return base_irrf * 0.15 - 354.80
-            elif base_irrf <= 4664.68:
-                return base_irrf * 0.225 - 636.13
-            else:
-                return base_irrf * 0.275 - 869.36
-
-        inss = calcular_inss(salario_base)
-        irrf = calcular_irrf(salario_base, inss)
-
-        nome_arquivo = (
-            f"holerite_{colaborador[1].replace(' ', '_')}_{data_pagamento}.pdf"
-        )
-        c = canvas.Canvas(nome_arquivo, pagesize=A4)
-        largura, altura = A4
-
-        y = altura - 20 * mm
-        c.setFont("Helvetica-Bold", 10)
-        c.drawString(20 * mm, y, colaborador[4])  # empresa
-        c.setFont("Helvetica", 9)
-        c.drawString(20 * mm, y - 5 * mm, "CNPJ: 00.000.000/0001-00")
-        c.drawString(100 * mm, y - 5 * mm, "CC: GERAL")
-        c.drawString(100 * mm, y - 10 * mm, "Mensalista")
-        c.drawString(160 * mm, y - 10 * mm, "Folha Mensal")
-        c.drawString(160 * mm, y - 15 * mm, f"{data_pagamento[-7:]}")
-
-        y -= 25 * mm
-        c.setFont("Helvetica-Bold", 9)
-        c.drawString(20 * mm, y, f"{colaborador[1]}")  # nome
-        c.setFont("Helvetica", 9)
-        c.drawString(20 * mm, y - 5 * mm, f"{colaborador[6]}")  # cargo correto
-        c.drawString(100 * mm, y, "CBO: 422110")
-        c.drawString(100 * mm, y - 5 * mm, "Departamento: 1")
-        c.drawString(140 * mm, y - 5 * mm, "Filial: 1")
-        c.drawString(100 * mm, y - 10 * mm, f"Admissão: {data_pagamento}")
-
-        # Cabeçalho da tabela
-        y -= 25 * mm
-        c.setFont("Helvetica-Bold", 8)
-        headers = ["Código", "Descrição", "Referência", "Vencimentos", "Descontos"]
-        x_positions = [22, 40, 100, 120, 150]
-        for i, header in enumerate(headers):
-            c.drawString(x_positions[i] * mm, y, header)
-
-        y -= 6 * mm
-        c.setStrokeColor(grey)
-        c.line(20 * mm, y + 5 * mm, 190 * mm, y + 5 * mm)
-
-        rubricas = [
-            ("8781", "SALÁRIO", "30,00", f"{salario_base:,.2f}", ""),
-            ("995", "SALÁRIO FAMÍLIA", "31,71", f"{beneficios:,.2f}", ""),
-            ("998", "I.N.S.S.", "8,00", "", f"{inss:,.2f}"),
-            ("993", "DESCONTO", "0,54", "", f"{descontos:,.2f}"),
-            ("048", "VALE TRANSPORTE", "6,00", "", "65,67"),
-            ("999", "IRRF", "Base IR", "", f"{irrf:,.2f}"),
-        ]
-
-        c.setFont("Helvetica", 8)
-        for i, (cod, desc, ref, venc, descs) in enumerate(rubricas):
-            row_y = y - (i * 6 * mm)
-            c.drawString(x_positions[0] * mm, row_y, cod)
-            c.drawString(x_positions[1] * mm, row_y, desc)
-            c.drawString(x_positions[2] * mm, row_y, ref)
-            if venc:
-                c.drawRightString((x_positions[3] + 20) * mm, row_y, venc)
-            if descs:
-                c.drawRightString((x_positions[4] + 30) * mm, row_y, descs)
-            c.line(20 * mm, row_y - 1 * mm, 190 * mm, row_y - 1 * mm)
-
-        y = row_y - 10 * mm
-        total_venc = salario_base + beneficios
-        total_desc = descontos + inss + irrf + 65.67
-
-        c.setFont("Helvetica-Bold", 8)
-        c.drawString(100 * mm, y, "Total de Vencimentos:")
-        c.drawRightString(145 * mm, y, f"{total_venc:,.2f}")
-        y -= 5 * mm
-        c.drawString(100 * mm, y, "Total de Descontos:")
-        c.drawRightString(180 * mm, y, f"{total_desc:,.2f}")
-        y -= 10 * mm
-        c.drawString(100 * mm, y, "Valor Líquido:")
-        c.drawRightString(180 * mm, y, f"{salario_liquido:,.2f}")
-
-        y -= 15 * mm
-        c.setFont("Helvetica", 8)
-        c.drawString(20 * mm, y, f"Salário Base: {salario_base:,.2f}")
-        c.drawString(60 * mm, y, f"Base INSS: {salario_base:,.2f}")
-        c.drawString(100 * mm, y, f"Base FGTS: {salario_base:,.2f}")
-        c.drawString(140 * mm, y, "FGTS do mês: 87,56")
-        y -= 6 * mm
-        base_irrf = salario_base - inss
-        c.drawString(20 * mm, y, f"Base IRRF: {base_irrf:,.2f}")
-        c.drawString(60 * mm, y, f"IRRF: {irrf:,.2f}")
-        y -= 20 * mm
-        c.drawString(20 * mm, y, "Assinatura do Funcionário:")
-        c.line(60 * mm, y, 120 * mm, y)
-        c.drawRightString(190 * mm, y, "Data: ____/____/______")
-
-        c.save()
 
     def abrir_folhas_geradas(self):
         dialog = FolhasGeradasDialog(self)
