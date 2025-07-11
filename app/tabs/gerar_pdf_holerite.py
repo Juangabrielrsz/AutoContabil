@@ -1,132 +1,130 @@
-from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from PyQt5.QtWidgets import QFileDialog
 import fitz  # PyMuPDF
 import os
+from reportlab.pdfgen import canvas
+
+
+def mm_to_pt(x_mm, y_mm):
+    x = x_mm * mm
+    y = A4[1] - y_mm * mm
+    return x, y
 
 
 def gerar_pdf_holerite(self, folha):
-    # 1. Escolher onde salvar o PDF
-    nome_arquivo_sugerido = f"holerite_{folha['nome'].replace(' ', '_')}_07-2025.pdf"
+    MODELO_PDF = "app/tabs/modelos/holerite_modelo_em_branco.pdf"
+    temp_overlay_path = "overlay_temp.pdf"
+
+    nome_arquivo_sugerido = (
+        f"holerite_{folha['nome'].replace(' ', '_')}_{folha['data_pagamento']}.pdf"
+    )
     caminho_saida, _ = QFileDialog.getSaveFileName(
         self, "Salvar Holerite", nome_arquivo_sugerido, "PDF Files (*.pdf)"
     )
     if not caminho_saida:
-        return  # Cancelado
+        return
 
-    # 2. Caminho do modelo de fundo
-    MODELO_PDF = os.path.join(
-        os.path.dirname(__file__), "modelos", "holerite_modelo_em_branco.pdf"
-    )
-    temp_pdf_path = "temp_overlay.pdf"
+    c = canvas.Canvas(temp_overlay_path, pagesize=A4)
 
-    # 3. Criar o overlay com os dados
-    c = canvas.Canvas(temp_pdf_path, pagesize=A4)
+    def desenhar_holerite(offset_y):
+        # Corpo do texto
+        c.setFont("Times-Roman", 11)
 
-    def mm_to_pt(x_mm, y_mm):
-        x = x_mm * mm
-        y = A4[1] - y_mm * mm
-        return x, y
+        # Cabeçalho: Empresa e CNPJ
+        c.drawString(*mm_to_pt(4, 5 + offset_y), folha["empresa"])
+        c.drawString(*mm_to_pt(4, 9 + offset_y), "CNPJ: 00.000.000/0001-00")
 
-    # Título
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(*mm_to_pt(70, 10), "RECIBO DE PAGAMENTO DE SALÁRIO")
+        # Linha: CC, tipo, folha, mês/ano
+        c.drawString(*mm_to_pt(70, 8 + offset_y), "CC: GERAL")
+        c.drawString(*mm_to_pt(73, 12 + offset_y), "Mensalista")
+        c.drawString(*mm_to_pt(153, 8 + offset_y), "Folha Mensal")
+        mes_ano = folha["data_pagamento"][:7].split("-")
+        c.drawString(*mm_to_pt(160, 12 + offset_y), f"{mes_ano[1]}/{mes_ano[0]}")
 
-    # Nome da empresa no topo
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(*mm_to_pt(23, 18), folha["empresa"])
+        # Nome e Cargo
+        c.drawString(*mm_to_pt(10, 19 + offset_y), folha["nome"])
+        c.drawString(*mm_to_pt(10, 23 + offset_y), folha["cargo"])
 
-    # Nome do funcionário e cargo
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(*mm_to_pt(23, 40), folha["nome"])
-    c.setFont("Helvetica", 9)
-    c.drawString(*mm_to_pt(100, 40), "CBO: 422110")
-    c.drawString(*mm_to_pt(100, 45), f"Admissão: {folha['data_admissao']}")
-    c.drawString(*mm_to_pt(140, 45), "Departamento: PESSOAL")
-    c.drawString(*mm_to_pt(140, 50), f"Cargo: {folha['cargo']}")
+        # CBO, matrícula, admissão
+        c.drawString(*mm_to_pt(125, 17 + offset_y), "422110")
+        c.drawString(*mm_to_pt(125, 21 + offset_y), "Admissão:")
+        c.drawString(*mm_to_pt(150, 21 + offset_y), folha["data_admissao"])
 
-    # Rubricas (com valores padrão corretos)
-    rubricas = [
-        ("8781", "SALÁRIO", "30", folha["salario_base"], ""),
-        ("995", "SALÁRIO FAMÍLIA", "1", folha["beneficios"], ""),
-        ("998", "INSS", "", "", 100.00),
-        ("993", "DESCONTO", "", "", folha["descontos"]),
-        ("048", "VALE TRANSPORTE", "6", "", 80.00),
-    ]
+        # Tabela de rubricas
+        rubricas = [
+            ("8781", "SALARIO", "30,00", folha["salario_base"], ""),
+            ("995", "SALARIO FAMILIA", "1", folha["beneficios"], ""),
+            ("998", "I.N.S.S.", "8,00", "", 87.56),
+            ("048", "VALE TRANSPORTE", "6,00", "", 65.67),
+        ]
 
-    # Cabeçalho da tabela
-    c.setFont("Helvetica-Bold", 8)
-    x_rub = [22, 42, 95, 130, 165]  # mm
-    y_start = 75
-    c.drawString(*mm_to_pt(x_rub[0], y_start), "Código")
-    c.drawString(*mm_to_pt(x_rub[1], y_start), "Descrição")
-    c.drawString(*mm_to_pt(x_rub[2], y_start), "Referência")
-    c.drawString(*mm_to_pt(x_rub[3], y_start), "Vencimentos")
-    c.drawString(*mm_to_pt(x_rub[4], y_start), "Descontos")
+        y = 30 + offset_y
+        for cod, desc, ref, venc, descs in rubricas:
+            y += 5.0  # Mais compactado
+            c.setFont("Courier", 10)  # Fonte monoespaçada como no modelo real
 
-    # Linhas da tabela
-    c.setFont("Helvetica", 8)
-    y_line = y_start + 7
-    for cod, desc, ref, venc, descs in rubricas:
-        y_line += 6
-        c.drawString(*mm_to_pt(x_rub[0], y_line), str(cod))
-        c.drawString(*mm_to_pt(x_rub[1], y_line), str(desc))
-        c.drawString(*mm_to_pt(x_rub[2], y_line), str(ref))
-        if venc:
-            c.drawRightString(
-                mm_to_pt(x_rub[3] + 25, y_line)[0],
-                mm_to_pt(0, y_line)[1],
-                f"R$ {float(venc):,.2f}".replace(",", "X")
-                .replace(".", ",")
-                .replace("X", "."),
-            )
-        if descs:
-            c.drawRightString(
-                mm_to_pt(x_rub[4] + 25, y_line)[0],
-                mm_to_pt(0, y_line)[1],
-                f"R$ {float(descs):,.2f}".replace(",", "X")
-                .replace(".", ",")
-                .replace("X", "."),
-            )
+            c.drawString(*mm_to_pt(3, y), cod)
+            c.drawString(*mm_to_pt(17, y), desc)
 
-    # Totais
-    total_venc = folha["salario_base"] + folha["beneficios"]
-    total_desc = folha["descontos"] + 100 + 80
-    salario_liquido = total_venc - total_desc
+            x_ref, y_ref = mm_to_pt(115, y)
+            c.drawRightString(x_ref, y_ref, ref)
 
-    c.setFont("Helvetica-Bold", 8)
-    y_tot = y_line + 10
-    c.drawString(*mm_to_pt(130, y_tot), "Total Vencimentos:")
-    c.drawRightString(
-        *mm_to_pt(190, y_tot),
-        f"R$ {total_venc:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-    )
-    y_tot += 5
-    c.drawString(*mm_to_pt(130, y_tot), "Total Descontos:")
-    c.drawRightString(
-        *mm_to_pt(190, y_tot),
-        f"R$ {total_desc:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-    )
-    y_tot += 7
-    c.drawString(*mm_to_pt(130, y_tot), "Salário Líquido:")
-    c.drawRightString(
-        *mm_to_pt(190, y_tot),
-        f"R$ {salario_liquido:,.2f}".replace(",", "X")
-        .replace(".", ",")
-        .replace("X", "."),
-    )
+            if venc:
+                c.drawRightString(
+                    mm_to_pt(140, y)[0],
+                    mm_to_pt(0, y)[1],
+                    f"{venc:,.2f}".replace(",", "X")
+                    .replace(".", ",")
+                    .replace("X", "."),
+                )
+            if descs:
+                c.drawRightString(
+                    mm_to_pt(165, y)[0],
+                    mm_to_pt(0, y)[1],
+                    f"{descs:,.2f}".replace(",", "X")
+                    .replace(".", ",")
+                    .replace("X", "."),
+                )
+
+        # Totais
+        total_venc = folha["salario_base"] + folha["beneficios"]
+        total_desc = 87.56 + 65.67
+        liquido = total_venc - total_desc
+
+        y_totais = y + 22  # Espaço para os totais
+
+        c.setFont("Courier", 10)
+        c.drawRightString(
+            *mm_to_pt(168, y_totais),
+            f"{total_venc:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+        )
+        c.drawRightString(
+            *mm_to_pt(168, y_totais + 30),
+            f"{total_desc:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+        )
+        c.drawRightString(
+            *mm_to_pt(168, y_totais + 38),
+            f"{liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+        )
+
+        # Escritório de contabilidade (rodapé)
+        c.setFont("Times-Roman", 11)
+        c.drawString(*mm_to_pt(3, y_totais + 35), folha["escritorio"])
+
+    # Imprime 2 holerites por página
+    desenhar_holerite(offset_y=0)
+    desenhar_holerite(offset_y=140)
 
     c.save()
 
-    # 4. Combinar com modelo
     modelo = fitz.open(MODELO_PDF)
-    overlay = fitz.open(temp_pdf_path)
-    modelo[0].show_pdf_page(modelo[0].rect, overlay, 0)
+    overlay = fitz.open(temp_overlay_path)
+    page = modelo[0]
+    page.show_pdf_page(page.rect, overlay, 0)
     modelo.save(caminho_saida)
     modelo.close()
     overlay.close()
 
-    # Limpar temporário
-    if os.path.exists(temp_pdf_path):
-        os.remove(temp_pdf_path)
+    if os.path.exists(temp_overlay_path):
+        os.remove(temp_overlay_path)
