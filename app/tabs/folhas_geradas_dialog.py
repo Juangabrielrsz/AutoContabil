@@ -206,6 +206,7 @@ class FolhasGeradasDialog(QDialog):
             "beneficios": folha[6],
             "descontos": folha[7],
             "salario_liquido": folha[8],
+            "dias_trabalhados": (folha[9] if len(folha) > 9 else "30"),
             "data_admissao": data_admissao,
             "empresa": empresa,
             "escritorio": escritorio,

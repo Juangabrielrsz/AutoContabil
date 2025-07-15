@@ -167,17 +167,36 @@ class TabsDP(QWidget):
         input_data_pagamento.setCalendarPopup(True)
         input_data_pagamento.setDate(QDate.currentDate())
 
+        input_dias_trabalhados = QDoubleSpinBox()
+        input_dias_trabalhados.setMinimum(1)
+
         input_beneficios = QDoubleSpinBox()
         input_beneficios.setPrefix("R$ ")
         input_beneficios.setMaximum(999999)
+
+        input_vale_refeicao = QDoubleSpinBox()
+        input_vale_refeicao.setPrefix("R$ ")
+        input_vale_refeicao.setMaximum(999999)
+
+        input_vale_transporte = QDoubleSpinBox()
+        input_vale_transporte.setPrefix("R$ ")
+        input_vale_transporte.setMaximum(999999)
+
+        input_atrasos_faltas = QDoubleSpinBox()
+        input_atrasos_faltas.setPrefix("R$ ")
+        input_atrasos_faltas.setMaximum(999999)
 
         input_descontos = QDoubleSpinBox()
         input_descontos.setPrefix("R$ ")
         input_descontos.setMaximum(999999)
 
         layout.addRow("Data de Pagamento:", input_data_pagamento)
+        layout.addRow("Dias Trabalhados", input_dias_trabalhados := QDoubleSpinBox())
         layout.addRow("Benefícios:", input_beneficios)
-        layout.addRow("Descontos:", input_descontos)
+        layout.addRow("Vale Refeição/Alimentação:", input_vale_refeicao)
+        layout.addRow("Vale Transporte:", input_vale_transporte)
+        layout.addRow("Atrasos/Faltas:", input_atrasos_faltas)
+        layout.addRow("Outros Descontos:", input_descontos)
 
         btn_salvar = QPushButton("Gerar Holerite")
         layout.addRow(btn_salvar)
@@ -185,10 +204,24 @@ class TabsDP(QWidget):
 
         def gerar():
             data_pag = input_data_pagamento.date().toString("yyyy-MM-dd")
+            dias_trabalhados = input_dias_trabalhados.value()
             beneficios = input_beneficios.value()
-            descontos = input_descontos.value()
+            vale_refeicao = input_vale_refeicao.value()
+            vale_transporte = input_vale_transporte.value()
+            atrasos_faltas = input_atrasos_faltas.value()
+            outros_descontos = input_descontos.value()
+
+            # Total de descontos será a soma
+            total_descontos = atrasos_faltas + outros_descontos
+
             salario_base = float(colaborador[7])
-            salario_liquido = salario_base + beneficios - descontos
+            salario_liquido = (
+                salario_base
+                + beneficios
+                + vale_refeicao
+                + vale_transporte
+                - total_descontos
+            )
 
             # Salvar no banco
             conn = sqlite3.connect("app/database.db")
@@ -201,16 +234,16 @@ class TabsDP(QWidget):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    colaborador[0],  # id
-                    colaborador[1],  # nome
-                    colaborador[2],  # cpf
-                    colaborador[4],  # empresa
-                    colaborador[5],  # escritório
-                    colaborador[6],  # cargo
+                    colaborador[0],
+                    colaborador[1],
+                    colaborador[2],
+                    colaborador[4],
+                    colaborador[5],
+                    colaborador[6],
                     salario_base,
                     data_pag,
                     beneficios,
-                    descontos,
+                    total_descontos,
                     salario_liquido,
                 ),
             )
@@ -225,14 +258,18 @@ class TabsDP(QWidget):
                 "salario_base": salario_base,
                 "data_pagamento": data_pag,
                 "beneficios": beneficios,
-                "descontos": descontos,
+                "descontos": total_descontos,
                 "salario_liquido": salario_liquido,
-                "data_admissao": colaborador[8],
+                "data_admissao": colaborador[9],
                 "empresa": colaborador[4],
                 "escritorio": colaborador[5],
+                "dias_trabalhados": dias_trabalhados,
+                "vale_refeicao": vale_refeicao,
+                "vale_transporte": vale_transporte,
+                "atrasos_faltas": atrasos_faltas,
+                "outros_descontos": outros_descontos,
             }
 
-            # Gerar o PDF oficial
             gerar_pdf_holerite(self, folha_dict)
 
             QMessageBox.information(
