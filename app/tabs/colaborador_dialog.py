@@ -9,8 +9,9 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QMessageBox,
 )
-from PyQt5.QtCore import QDate, QLocale
+from PyQt5.QtCore import QDate, QLocale, Qt
 import sqlite3
+from PyQt5.QtWidgets import QCheckBox
 
 
 class ColaboradorDialog(QDialog):
@@ -41,10 +42,14 @@ class ColaboradorDialog(QDialog):
         self.input_admissao = QDateEdit()
         self.input_admissao.setCalendarPopup(True)
         self.input_admissao.dateChanged.connect(self.validar_datas)
-        self.input_demissao = QDateEdit()
-        self.input_demissao.setCalendarPopup(True)
-        self.input_demissao.dateChanged.connect(self.validar_datas)
-        self.input_demissao.setDate(QDate(2000, 1, 1))
+
+        self.input_data_demissao = QDateEdit()
+        self.input_data_demissao.setCalendarPopup(True)
+        self.input_data_demissao.setDate(QDate.currentDate())
+
+        self.checkbox_ativo = QCheckBox("Ainda está na empresa")
+        self.checkbox_ativo.setChecked(True)  # Default como ativo
+        self.checkbox_ativo.stateChanged.connect(self.toggle_demissao)
         self.input_obs = QTextEdit()
 
         layout.addRow("Nome:", self.input_nome)
@@ -56,7 +61,8 @@ class ColaboradorDialog(QDialog):
         layout.addRow("Salário:", self.input_salario)
         layout.addRow("Tipo de Contrato:", self.input_contrato)
         layout.addRow("Admissão:", self.input_admissao)
-        layout.addRow("Demissão:", self.input_demissao)
+        layout.addRow("Data de Demissão:", self.input_data_demissao)
+        layout.addRow("", self.checkbox_ativo)
         layout.addRow("Observações:", self.input_obs)
 
         self.btn_salvar = QPushButton("Salvar")
@@ -68,9 +74,15 @@ class ColaboradorDialog(QDialog):
         if self.colaborador:
             self.preencher_dados()
 
+    def toggle_demissao(self, state):
+        if state == Qt.Checked:
+            self.input_data_demissao.setEnabled(False)
+        else:
+            self.input_data_demissao.setEnabled(True)
+
     def validar_datas(self):
         data_admissao = self.input_admissao.date()
-        data_demissao = self.input_demissao.date()
+        data_demissao = self.input_data_demissao.date()
 
         if data_demissao < data_admissao:
             QMessageBox.warning(
@@ -78,7 +90,7 @@ class ColaboradorDialog(QDialog):
                 "Data inválida",
                 "A data de demissão não pode ser anterior à data de admissão.",
             )
-            self.input_demissao.setDate(data_admissao)
+            self.input_data_demissao.setDate(data_admissao)
 
     def preencher_dados(self):
         c = self.colaborador
@@ -91,12 +103,18 @@ class ColaboradorDialog(QDialog):
         self.input_salario.setValue(c[7])
         self.input_contrato.setCurrentText(c[8])
         self.input_admissao.setDate(QDate.fromString(c[9], "yyyy-MM-dd"))
-        self.input_demissao.setDate(
+        self.input_data_demissao.setDate(
             QDate.fromString(c[10], "yyyy-MM-dd") if c[10] else QDate(2000, 1, 1)
         )
         self.input_obs.setText(c[11])
 
     def salvar(self):
+        data_demissao = (
+            ""
+            if self.checkbox_ativo.isChecked()
+            else self.input_data_demissao.date().toString("yyyy-MM-dd")
+        )
+
         dados = (
             self.input_nome.text(),
             self.input_cpf.text(),
@@ -107,7 +125,7 @@ class ColaboradorDialog(QDialog):
             float(self.input_salario.value()),
             self.input_contrato.currentText(),
             self.input_admissao.date().toString("yyyy-MM-dd"),
-            self.input_demissao.date().toString("yyyy-MM-dd"),
+            data_demissao,
             self.input_obs.toPlainText(),
         )
 
@@ -134,7 +152,7 @@ class ColaboradorDialog(QDialog):
             """,
                 dados,
             )
-        if self.input_demissao.date() < self.input_admissao.date():
+        if self.input_data_demissao.date() < self.input_admissao.date():
             QMessageBox.warning(
                 self, "Erro", "Data de demissão não pode ser anterior à de admissão."
             )

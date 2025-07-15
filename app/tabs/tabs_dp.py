@@ -25,6 +25,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from app.tabs.folhas_geradas_dialog import FolhasGeradasDialog
 from app.tabs.colaborador_dialog import ColaboradorDialog
+from PyQt5.QtWidgets import QCheckBox
 
 
 class TabsDP(QWidget):
