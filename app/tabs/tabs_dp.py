@@ -36,22 +36,56 @@ class TabsDP(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
-        # Campo de filtro por Nome ou CPF (parte superior)
+        # Layout de filtros superiores
         filtro_layout = QHBoxLayout()
-        filtro_layout.addWidget(QLabel("Nome/CPF:"))
 
+        # Filtro por Nome/CPF
+        filtro_layout.addWidget(QLabel("Nome/CPF:"))
         self.input_nome_cpf = QLineEdit()
         self.input_nome_cpf.setPlaceholderText("Digite Nome ou CPF do Colaborador")
         self.input_nome_cpf.setMaximumWidth(220)
         filtro_layout.addWidget(self.input_nome_cpf)
-        filtro_layout.addStretch()  # empurra os elementos para a esquerda
 
-        # Autocomplete com nomes e CPFs únicos
+        # Filtro por Nome da Empresa
+        filtro_layout.addWidget(QLabel("Empresa:"))
+        self.input_empresa = QLineEdit()
+        self.input_empresa.setPlaceholderText("Digite o nome da Empresa")
+        self.input_empresa.setMaximumWidth(220)
+        filtro_layout.addWidget(self.input_empresa)
+
+        filtro_layout.addStretch()  # Empurra tudo para a esquerda
+
+        # Autocomplete para Nome/CPF
         conn = sqlite3.connect("app/database.db")
         cursor = conn.cursor()
         cursor.execute("SELECT DISTINCT nome, cpf FROM folha_pagamento")
         resultados = cursor.fetchall()
+
+        opcoes_nome_cpf = set()
+        for nome, cpf in resultados:
+            if nome:
+                opcoes_nome_cpf.add(nome.strip())
+            if cpf:
+                opcoes_nome_cpf.add(cpf.strip())
+
+        completer_nome_cpf = QCompleter(sorted(opcoes_nome_cpf))
+        completer_nome_cpf.setCaseSensitivity(Qt.CaseInsensitive)
+        completer_nome_cpf.setFilterMode(Qt.MatchContains)
+        self.input_nome_cpf.setCompleter(completer_nome_cpf)
+
+        # Autocomplete para Empresa
+        cursor.execute("SELECT DISTINCT empresa FROM colaboradores")
+        empresas = [e[0] for e in cursor.fetchall() if e[0]]
+
+        completer_empresa = QCompleter(sorted(empresas))
+        completer_empresa.setCaseSensitivity(Qt.CaseInsensitive)
+        completer_empresa.setFilterMode(Qt.MatchContains)
+        self.input_empresa.setCompleter(completer_empresa)
+        self.input_nome_cpf.textChanged.connect(self.carregar_dados)
+        self.input_empresa.textChanged.connect(self.carregar_dados)
         conn.close()
+
+        layout.addLayout(filtro_layout)
 
         opcoes = set()
         for nome, cpf in resultados:
@@ -114,15 +148,30 @@ class TabsDP(QWidget):
         self.tabela.cellDoubleClicked.connect(self.abrir_detalhes_colaborador)
 
     def carregar_dados(self):
+        nome_cpf_filtro = self.input_nome_cpf.text().strip()
+        empresa_filtro = self.input_empresa.text().strip()
+
         conn = sqlite3.connect("app/database.db")
         cursor = conn.cursor()
-        cursor.execute(
-            """
+
+        query = """
             SELECT id, nome, cpf, cnpj_empresa, empresa, escritorio, cargo, salario,
-                   tipo_contrato, data_admissao, data_demissao, observacoes
+                tipo_contrato, data_admissao, data_demissao, observacoes
             FROM colaboradores
+            WHERE 1 = 1
         """
-        )
+        params = []
+
+        if nome_cpf_filtro:
+            query += " AND (nome LIKE ? OR cpf LIKE ?)"
+            filtro = f"%{nome_cpf_filtro}%"
+            params.extend([filtro, filtro])
+
+        if empresa_filtro:
+            query += " AND empresa LIKE ?"
+            params.append(f"%{empresa_filtro}%")
+
+        cursor.execute(query, params)
         dados = cursor.fetchall()
         conn.close()
 
@@ -212,10 +261,21 @@ class TabsDP(QWidget):
             atrasos_faltas = input_atrasos_faltas.value()
             outros_descontos = input_descontos.value()
 
-            # Total de descontos será a soma
-            total_descontos = atrasos_faltas + outros_descontos
-
             salario_base = float(colaborador[7])
+
+            # 🟡 APLICANDO REGRAS DE DESCONTO
+            desconto_vale_refeicao = min(vale_refeicao, vale_refeicao * 0.20)
+            desconto_vale_transporte = min(vale_transporte, salario_base * 0.06)
+
+            # 🧮 Total de descontos
+            total_descontos = (
+                outros_descontos
+                + atrasos_faltas
+                + desconto_vale_refeicao
+                + desconto_vale_transporte
+            )
+
+            # 🧾 Cálculo do salário líquido
             salario_liquido = (
                 salario_base
                 + beneficios
@@ -251,7 +311,7 @@ class TabsDP(QWidget):
             conn.commit()
             conn.close()
 
-            # Monta o dicionário para gerar PDF
+            # Monta o dicionário para o PDF
             folha_dict = {
                 "nome": colaborador[1],
                 "cpf": colaborador[2],
@@ -269,6 +329,8 @@ class TabsDP(QWidget):
                 "vale_transporte": vale_transporte,
                 "atrasos_faltas": atrasos_faltas,
                 "outros_descontos": outros_descontos,
+                "desconto_vale_refeicao": desconto_vale_refeicao,
+                "desconto_vale_transporte": desconto_vale_transporte,
             }
 
             gerar_pdf_holerite(self, folha_dict)

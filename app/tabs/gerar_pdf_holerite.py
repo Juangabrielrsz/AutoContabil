@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QFileDialog
 import fitz  # PyMuPDF
 import os
 from reportlab.pdfgen import canvas
+from datetime import datetime
 
 
 def mm_to_pt(x_mm, y_mm):
@@ -56,10 +57,14 @@ def gerar_pdf_holerite(self, folha):
         c.drawString(*mm_to_pt(150, 12 + offset_y), f"{meses_pt[mes]} de {ano}")
 
         c.drawString(*mm_to_pt(10, 19 + offset_y), folha["nome"])
-        c.drawString(*mm_to_pt(10, 23 + offset_y), folha["cargo"])
+        c.drawString(*mm_to_pt(10, 23 + offset_y), "CBO:")
+        c.drawString(*mm_to_pt(20, 23 + offset_y), folha["cargo"])
         c.drawString(*mm_to_pt(125, 17 + offset_y), "422110")
         c.drawString(*mm_to_pt(125, 21 + offset_y), "Admissão:")
-        c.drawString(*mm_to_pt(150, 21 + offset_y), folha["data_admissao"])
+        data_formatada = datetime.strptime(folha["data_admissao"], "%Y-%m-%d").strftime(
+            "%d/%m/%Y"
+        )
+        c.drawString(*mm_to_pt(150, 21 + offset_y), data_formatada)
 
         # BASES de Cálculo
         salario_base = folha["salario_base"]
@@ -69,74 +74,61 @@ def gerar_pdf_holerite(self, folha):
 
         # INSS
         if base_inss <= 1518.00:
-            inss_aliq = 0.075
-            inss_ded = 0
+            inss_aliq, inss_ded = 0.075, 0
         elif base_inss <= 2793.88:
-            inss_aliq = 0.09
-            inss_ded = 22.77
+            inss_aliq, inss_ded = 0.09, 22.77
         elif base_inss <= 4190.83:
-            inss_aliq = 0.12
-            inss_ded = 106.59
+            inss_aliq, inss_ded = 0.12, 106.59
         else:
-            inss_aliq = 0.14
-            inss_ded = 190.40
+            inss_aliq, inss_ded = 0.14, 190.40
         inss_valor = round(base_inss * inss_aliq - inss_ded, 2)
 
         # IRRF
         base_irrf = salario_base - inss_valor
         if base_irrf <= 2428.80:
-            irrf_aliq = 0.0
-            irrf_ded = 0.0
+            irrf_aliq, irrf_ded = 0.0, 0.0
         elif base_irrf <= 2826.65:
-            irrf_aliq = 0.075
-            irrf_ded = 182.16
+            irrf_aliq, irrf_ded = 0.075, 182.16
         elif base_irrf <= 3751.05:
-            irrf_aliq = 0.15
-            irrf_ded = 384.16
+            irrf_aliq, irrf_ded = 0.15, 384.16
         elif base_irrf <= 4664.68:
-            irrf_aliq = 0.225
-            irrf_ded = 675.49
+            irrf_aliq, irrf_ded = 0.225, 675.49
         else:
-            irrf_aliq = 0.275
-            irrf_ded = 908.73
+            irrf_aliq, irrf_ded = 0.275, 908.73
         irrf_valor = max(round(base_irrf * irrf_aliq - irrf_ded, 2), 0)
+
+        # Regras para descontos de vale-refeição e transporte
+        desconto_vr = min(
+            folha.get("vale_refeicao", 0) * 0.2, folha.get("vale_refeicao", 0)
+        )
+        desconto_vt = min(salario_base * 0.06, folha.get("vale_transporte", 0))
 
         rubricas = []
 
-        # Salário base
         rubricas.append(
-            ("8781", "SALÁRIO", folha["dias_trabalhados"], folha["salario_base"], "")
+            ("8781", "SALÁRIO", folha["dias_trabalhados"], salario_base, "")
         )
-
-        # Benefícios
         if folha.get("beneficios", 0) > 0:
             rubricas.append(("995", "BENEFÍCIOS", "1", folha["beneficios"], ""))
-
-        # Vale-refeição
         if folha.get("vale_refeicao", 0) > 0:
             rubricas.append(
-                ("047", "VAL.REFEIÇÃO/ALIM.", "", folha["vale_refeicao"], "")
+                ("047", "VAL.REFEIÇÃO/ALIM.", "", folha["vale_refeicao"], desconto_vr)
             )
-
-        # Vale-transporte
         if folha.get("vale_transporte", 0) > 0:
             rubricas.append(
-                ("048", "VALE TRANSPORTE", "", folha["vale_transporte"], "")
+                ("048", "VALE TRANSPORTE", "", folha["vale_transporte"], desconto_vt)
             )
-
-        # Descontos
         if folha.get("outros_descontos", 0) > 0:
-            rubricas.append(("049", "Descontos", "", "", folha["outros_descontos"]))
-
-        # FGTS
+            rubricas.append(
+                ("049", "OUTROS DESCONTOS", "", "", folha["outros_descontos"])
+            )
+        if folha.get("atrasos_faltas", 0) > 0:
+            rubricas.append(("050", "ATRASOS/FALTAS", "", "", folha["atrasos_faltas"]))
         if inss_valor > 0:
             rubricas.append(("998", "I.N.S.S.", "", "", inss_valor))
-
-        # I.R.R.F.
         if irrf_valor > 0:
             rubricas.append(("999", "I.R.R.F.", "", "", irrf_valor))
 
-        # Preencher com linhas em branco até ter 6 linhas
         while len(rubricas) < 6:
             rubricas.append(("", "", "", "", ""))
 
@@ -164,13 +156,20 @@ def gerar_pdf_holerite(self, folha):
                 )
 
         # Totais
-        total_venc = (
-            folha["salario_base"]
-            + folha.get("beneficios", 0)
-            + folha.get("vale_refeicao", 0)
-            + folha.get("vale_transporte", 0)
+        total_venc = salario_base
+        total_venc += folha.get("beneficios", 0)
+        total_venc += folha.get("vale_refeicao", 0)
+        total_venc += folha.get("vale_transporte", 0)
+
+        total_desc = (
+            desconto_vr
+            + desconto_vt
+            + folha.get("outros_descontos", 0)
+            + folha.get("atrasos_faltas", 0)
+            + inss_valor
+            + irrf_valor
         )
-        total_desc = folha.get("outros_descontos", 0) + inss_valor + irrf_valor
+
         liquido = total_venc - total_desc
 
         y_totais = 70 + offset_y
@@ -188,10 +187,11 @@ def gerar_pdf_holerite(self, folha):
             f"{liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
         )
         c.drawString(*mm_to_pt(140, y_totais + 40), "➡")
+
         c.setFont("Times-Roman", 11)
         c.drawString(*mm_to_pt(3, y_totais + 35), folha["escritorio"])
 
-        # Rodapé fixo
+        # Rodapé fixo com bases
         c.setFont("Courier", 9)
         y_calc = 120 + offset_y
         c.drawString(
@@ -216,7 +216,7 @@ def gerar_pdf_holerite(self, folha):
             *mm_to_pt(125, y_calc),
             f"{base_irrf:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
         )
-        c.drawString(*mm_to_pt(158, y_calc), f"{int(irrf_aliq*100)}%")
+        c.drawString(*mm_to_pt(158, y_calc), f"{int(irrf_aliq * 100)}%")
 
     desenhar_holerite(offset_y=0)
     desenhar_holerite(offset_y=140)

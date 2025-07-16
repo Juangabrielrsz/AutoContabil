@@ -4,6 +4,7 @@ from app.tabs.tabs_extratos import TabsExtratos
 from app.tabs.tabs_mei import TabsMei
 from app.tabs.tabs_fechamento import TabsFechamento
 from app.tabs.tabs_dp import TabsDP
+from app.tabs.tabs_relatorios import TabsRelatorios
 
 
 class MainWindow(QMainWindow):
@@ -21,7 +22,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(TabsFechamento(), "Fechamento Contábil")
         self.tabs.addTab(TabsDP(), "Departamento Pessoal")
         # Outras abas com placeholder "em construção"
-        self.tabs.addTab(self.criar_aba("Relatórios"), "Relatórios")
+        self.tabs.addTab(TabsRelatorios(), "Relatórios")
 
     def criar_aba(self, nome):
         aba = QWidget()
