@@ -1,0 +1,42 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribuições e builds
+dist/
+build/
+*.spec
+
+# Arquivos do Inno Setup
+*.iss
+*.exe
+
+# Ambientes virtuais
+venv/
+.env/
+.venv/
+
+# Arquivos temporários
+*.log
+*.tmp
+*.bak
+*.swp
+*.DS_Store
+*.pyo
+
+# Arquivos gerados automaticamente
+overlay_temp.pdf
+
+
+# Arquivos de configuração do VS Code
+.vscode/
+
+# Cache do PyInstaller
+__pycache__/
+*.manifest
+*.spec
+
+# Configuração de sistema
+Thumbs.db
+Desktop.ini
