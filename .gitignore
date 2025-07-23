@@ -8,9 +8,10 @@ dist/
 build/
 *.spec
 
-# Arquivos do Inno Setup
+# Arquivos do Inno Setup e instaladores
 *.iss
 *.exe
+installer/*.exe
 
 # Ambientes virtuais
 venv/
@@ -28,15 +29,12 @@ venv/
 # Arquivos gerados automaticamente
 overlay_temp.pdf
 
-
 # Arquivos de configuração do VS Code
 .vscode/
 
 # Cache do PyInstaller
-__pycache__/
 *.manifest
-*.spec
 
-# Configuração de sistema
+# Configurações de sistema
 Thumbs.db
 Desktop.ini

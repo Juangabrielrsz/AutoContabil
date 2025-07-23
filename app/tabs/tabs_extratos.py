@@ -15,8 +15,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QDate
 import sqlite3
-import os
 import pandas as pd
+from app.utils import get_writable_db_path
 
 
 class TabsExtratos(QWidget):
@@ -118,7 +118,7 @@ class TabsExtratos(QWidget):
         return r"C:\Users\juang\OneDrive\Área de Trabalho\automacao_contabil\app\database.db"
 
     def carregar_clientes(self):
-        conn = sqlite3.connect(self.get_caminho_banco())
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
         cursor.execute("SELECT DISTINCT cliente FROM extratos ORDER BY cliente")
         clientes = cursor.fetchall()
@@ -130,7 +130,7 @@ class TabsExtratos(QWidget):
             self.combo_cliente.addItem(cliente[0])
 
     def carregar_dados(self):
-        conn = sqlite3.connect(self.get_caminho_banco())
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
 
         cnpj = self.input_cnpj.text().strip()
@@ -280,7 +280,7 @@ class TabsExtratos(QWidget):
 
         def salvar():
             try:
-                conn = sqlite3.connect(self.get_caminho_banco())
+                conn = sqlite3.connect(get_writable_db_path())
                 cursor = conn.cursor()
                 cursor.execute(
                     """
@@ -314,7 +314,7 @@ class TabsExtratos(QWidget):
         data_inicio = self.data_inicio.date().toString("yyyy-MM-dd")
         data_fim = self.data_fim.date().toString("yyyy-MM-dd")
 
-        conn = sqlite3.connect(self.get_caminho_banco())
+        conn = sqlite3.connect(get_writable_db_path())
 
         if cliente_filtro == "Todos":
             query = "SELECT * FROM extratos WHERE data BETWEEN ? AND ?"
@@ -405,7 +405,7 @@ class TabsExtratos(QWidget):
         def salvar():
             try:
                 valor_float = float(input_valor.text().replace(",", "."))
-                conn = sqlite3.connect(self.get_caminho_banco())
+                conn = sqlite3.connect(get_writable_db_path())
                 cursor = conn.cursor()
                 cursor.execute(
                     """
@@ -438,7 +438,7 @@ class TabsExtratos(QWidget):
                 QMessageBox.Yes | QMessageBox.No,
             )
             if confirm == QMessageBox.Yes:
-                conn = sqlite3.connect(self.get_caminho_banco())
+                conn = sqlite3.connect(get_writable_db_path())
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM extratos WHERE id = ?", (id_extrato,))
                 conn.commit()

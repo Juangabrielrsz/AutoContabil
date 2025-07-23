@@ -1,6 +1,6 @@
-# 🧾 CbOrganization
+# 🧾 AutoContabil
 
-**CbOrganization** é uma aplicação desktop de automação contábil desenvolvida em **Python (PyQt5)** com funcionalidades voltadas para gestão de colaboradores, geração de folhas de pagamento e holerites com layout tradicional brasileiro.  
+**AutoContabil** é uma aplicação desktop de automação contábil desenvolvida em **Python (PyQt5)** com funcionalidades voltadas para gestão de colaboradores, geração de folhas de pagamento e holerites.  
 
 ---
 
@@ -24,14 +24,14 @@
 
 ### 1. Baixe o Instalador
 
-> Arquivo: `CbOrganizationInstaller.exe`
+> Arquivo: `AutoContabilInstaller.exe`
 
 Disponibilize o instalador para seus usuários (via Google Drive, Dropbox ou site institucional).
 
 ### 2. Execute o Instalador
 
-- Clique duas vezes em `CbOrganizationInstaller.exe`
-- O sistema será instalado em `C:\Program Files\CbOrganization`
+- Clique duas vezes em `AutoContabilInstaller.exe`
+- O sistema será instalado em `C:\Program Files\AutoContabil`
 - Um **atalho será criado na área de trabalho**
 - O programa será iniciado automaticamente após a instalação
 
@@ -59,7 +59,7 @@ python run.py
 ## 🏗️ Gerar Executável (.exe)
 
 ```bash
-pyinstaller --noconfirm --onefile --windowed --icon=installer/icon.ico run.py --name=CbOrganization
+pyinstaller --noconfirm --onefile --windowed --name=AutoContabil --icon=installer/icon.ico --add-data "app/database.db;app" --add-data "app/tabs/modelos/holerite_modelo_em_branco.pdf;app/tabs/modelos" run.py
 ```
 
 > O executável será gerado na pasta `dist/`
@@ -71,7 +71,7 @@ pyinstaller --noconfirm --onefile --windowed --icon=installer/icon.ico run.py --
 ### Pré-requisitos
 
 - Instale o [Inno Setup](https://jrsoftware.org/isinfo.php)
-- Copie o executável gerado (`dist/CbOrganization.exe`) para a pasta do instalador
+- Copie o executável gerado (`dist/AutoContabil.exe`) para a pasta do instalador
 
 ### Estrutura esperada:
 
@@ -80,39 +80,39 @@ installer/
 ├── icon.ico
 ├── VC_redist.x64.exe
 ├── setup.iss
-├── CbOrganizationInstaller.exe (saída)
+├── AutoContabilInstaller.exe (saída)
 ```
 
 ### Compile com o seguinte `setup.iss`:
 
 ```ini
 [Setup]
-AppName=CbOrganization
+AppName=AutoContabil
 AppVersion=1.0
-DefaultDirName={pf}\CbOrganization
-DefaultGroupName=CbOrganization
-UninstallDisplayIcon={app}\CbOrganization.exe
+DefaultDirName={pf}\AutoContabil
+DefaultGroupName=AutoContabil
+UninstallDisplayIcon={app}\AutoContabil.exe
 OutputDir=.
-OutputBaseFilename=CbOrganizationInstaller
+OutputBaseFilename=AutoContabilInstaller
 SetupIconFile=icon.ico
 Compression=lzma
 SolidCompression=yes
 
 [Files]
-Source: "dist\CbOrganization.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\AutoContabil.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "app\database.db"; DestDir: "{app}\app"; Flags: ignoreversion
 Source: "app\tabs\modelos\holerite_modelo_em_branco.pdf"; DestDir: "{app}\app\tabs\modelos"; Flags: ignoreversion
 Source: "installer\VC_redist.x64.exe"; DestDir: "{tmp}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\CbOrganization"; Filename: "{app}\CbOrganization.exe"
-Name: "{commondesktop}\CbOrganization"; Filename: "{app}\CbOrganization.exe"; Tasks: desktopicon
+Name: "{group}\AutoContabil"; Filename: "{app}\AutoContabil.exe"
+Name: "{commondesktop}\AutoContabil"; Filename: "{app}\AutoContabil.exe"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Criar atalho na área de trabalho"; GroupDescription: "Opções adicionais"
 
 [Run]
-Filename: "{app}\CbOrganization.exe"; Description: "Executar CbOrganization"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\AutoContabil.exe"; Description: "Executar AutoContabil"; Flags: nowait postinstall skipifsilent
 Filename: "{tmp}\VC_redist.x64.exe"; Parameters: "/quiet /norestart"; Flags: waituntilterminated
 ```
 
@@ -133,11 +133,11 @@ automacao_contabil/
 │       └── modelos/
 │           └── holerite_modelo_em_branco.pdf
 ├── dist/
-│   └── CbOrganization.exe
+│   └── AutoContabil.exe
 ├── installer/
 │   ├── icon.ico
 │   ├── VC_redist.x64.exe
-│   └── CbOrganizationInstaller.exe
+│   └── AutoContabilInstaller.exe
 ├── run.py
 └── README.md
 ```

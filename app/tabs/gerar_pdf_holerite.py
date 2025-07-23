@@ -5,6 +5,7 @@ import fitz  # PyMuPDF
 import os
 from reportlab.pdfgen import canvas
 from datetime import datetime
+import sys
 
 
 def mm_to_pt(x_mm, y_mm):
@@ -13,8 +14,16 @@ def mm_to_pt(x_mm, y_mm):
     return x, y
 
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+
 def gerar_pdf_holerite(self, folha):
-    MODELO_PDF = "app/tabs/modelos/holerite_modelo_em_branco.pdf"
+    MODELO_PDF = resource_path("app/tabs/modelos/holerite_modelo_em_branco.pdf")
     temp_overlay_path = "overlay_temp.pdf"
 
     nome_arquivo_sugerido = (

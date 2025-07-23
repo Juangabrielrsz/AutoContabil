@@ -15,9 +15,7 @@ from PyQt5.QtCore import QDate
 from PyQt5.QtCore import Qt
 import sqlite3
 import pandas as pd
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import mm
+from app.utils import get_writable_db_path
 
 
 class TabsFechamento(QWidget):
@@ -45,7 +43,8 @@ class TabsFechamento(QWidget):
         self.input_cliente_cnpj.setMaximumWidth(220)
 
         # Autocomplete com nomes e CNPJs únicos
-        conn = sqlite3.connect("app/database.db")
+
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
         cursor.execute("SELECT DISTINCT cliente, cnpj FROM extratos")
         resultados = cursor.fetchall()
@@ -111,7 +110,7 @@ class TabsFechamento(QWidget):
         data_fim = self.data_fim.date().toString("yyyy-MM-dd")
         texto_filtro = self.input_cliente_cnpj.text().strip()
 
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
 
         query = "SELECT tipo, valor FROM extratos WHERE data BETWEEN ? AND ?"
@@ -147,7 +146,7 @@ class TabsFechamento(QWidget):
         data_ini = self.data_inicio.date().toString("yyyy-MM-dd")
         data_fim = self.data_fim.date().toString("yyyy-MM-dd")
 
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         df = pd.read_sql_query(
             "SELECT * FROM extratos WHERE data BETWEEN ? AND ?",
             conn,

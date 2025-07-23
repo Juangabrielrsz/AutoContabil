@@ -13,10 +13,10 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QInputDialog,
 )
-from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 from functools import partial
 import sqlite3
+from app.utils import get_writable_db_path
 
 
 class TabsMei(QWidget):
@@ -132,7 +132,7 @@ class TabsMei(QWidget):
         # Obtém nome do MEI clicado
         mei_nome = self.tabela.item(row, 0).text()
 
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM mei WHERE nome = ?", (mei_nome,))
         result = cursor.fetchone()
@@ -143,7 +143,8 @@ class TabsMei(QWidget):
 
     def carregar_dados(self):
         filtro = self.input_filtro.text().strip()
-        conn = sqlite3.connect("app/database.db")
+
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
 
         if filtro:
@@ -232,7 +233,8 @@ class TabsMei(QWidget):
 
         # Se edição, carregar dados existentes
         if editar_id:
-            conn = sqlite3.connect("app/database.db")
+
+            conn = sqlite3.connect(get_writable_db_path())
             cursor = conn.cursor()
             cursor.execute(
                 "SELECT nome, email, senha_gov, cnpj, cpf, codigo_acesso FROM mei WHERE rowid = ?",
@@ -276,7 +278,8 @@ class TabsMei(QWidget):
     def salvar_mei(
         self, dialog, nome, email, senha, cnpj, cpf, codigo_acesso, editar_id=None
     ):
-        conn = sqlite3.connect("app/database.db")
+
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
         if editar_id:
             cursor.execute(
@@ -316,7 +319,8 @@ class TabsMei(QWidget):
             QMessageBox.Yes | QMessageBox.No,
         )
         if confirm == QMessageBox.Yes:
-            conn = sqlite3.connect("app/database.db")
+
+            conn = sqlite3.connect(get_writable_db_path())
             cursor = conn.cursor()
             cursor.execute("DELETE FROM mei WHERE rowid = ?", (rowid,))
             conn.commit()
@@ -341,7 +345,7 @@ class TabsMei(QWidget):
 
         mei_nome = self.tabela.item(selected_row, 0).text()
 
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
         cursor.execute("SELECT rowid FROM mei WHERE nome = ?", (mei_nome,))
         result = cursor.fetchone()
@@ -394,7 +398,8 @@ class TabsMei(QWidget):
         self.carregar_emissoes(mei_id)
 
     def carregar_emissoes(self, mei_id):
-        conn = sqlite3.connect("app/database.db")
+
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -456,7 +461,8 @@ class TabsMei(QWidget):
             decimals=2,
         )
         if ok:
-            conn = sqlite3.connect("app/database.db")
+
+            conn = sqlite3.connect(get_writable_db_path())
             cursor = conn.cursor()
             cursor.execute(
                 "UPDATE controle_emissao_mei SET valor_emitido = ? WHERE mei_id = ? AND mes = ?",
@@ -474,7 +480,8 @@ class TabsMei(QWidget):
             QMessageBox.Yes | QMessageBox.No,
         )
         if confirm == QMessageBox.Yes:
-            conn = sqlite3.connect("app/database.db")
+
+            conn = sqlite3.connect(get_writable_db_path())
             cursor = conn.cursor()
             cursor.execute(
                 "DELETE FROM controle_emissao_mei WHERE mei_id = ? AND mes = ?",

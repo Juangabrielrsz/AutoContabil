@@ -25,7 +25,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from app.tabs.folhas_geradas_dialog import FolhasGeradasDialog
 from app.tabs.colaborador_dialog import ColaboradorDialog
-from PyQt5.QtWidgets import QCheckBox
+from app.utils import get_writable_db_path
 
 
 class TabsDP(QWidget):
@@ -56,7 +56,9 @@ class TabsDP(QWidget):
         filtro_layout.addStretch()  # Empurra tudo para a esquerda
 
         # Autocomplete para Nome/CPF
-        conn = sqlite3.connect("app/database.db")
+
+        # Uso:
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
         cursor.execute("SELECT DISTINCT nome, cpf FROM folha_pagamento")
         resultados = cursor.fetchall()
@@ -151,7 +153,7 @@ class TabsDP(QWidget):
         nome_cpf_filtro = self.input_nome_cpf.text().strip()
         empresa_filtro = self.input_empresa.text().strip()
 
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
 
         query = """
@@ -284,8 +286,7 @@ class TabsDP(QWidget):
                 - total_descontos
             )
 
-            # Salvar no banco
-            conn = sqlite3.connect("app/database.db")
+            conn = sqlite3.connect(get_writable_db_path())
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -358,23 +359,8 @@ class TabsDP(QWidget):
 
             self.carregar_dados()
 
-    def excluir_colaborador(self, colaborador_id):
-        resposta = QMessageBox.question(
-            self, "Confirmação", "Tem certeza que deseja excluir este colaborador?"
-        )
-        if resposta == QMessageBox.Yes:
-            conn = sqlite3.connect("app/database.db")
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM colaboradores WHERE id = ?", (colaborador_id,))
-            conn.commit()
-            conn.close()
-            QMessageBox.information(
-                self, "Excluído", "Colaborador excluído com sucesso."
-            )
-            self.carregar_dados()
-
     def exportar_excel(self):
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         df = pd.read_sql_query("SELECT * FROM colaboradores", conn)
         conn.close()
         caminho, _ = QFileDialog.getSaveFileName(
@@ -384,8 +370,31 @@ class TabsDP(QWidget):
             df.to_excel(caminho, index=False)
             QMessageBox.information(self, "Exportado", "Dados exportados com sucesso.")
 
+    def excluir_colaborador(self, colaborador_id):
+        resposta = QMessageBox.question(
+            self, "Confirmação", "Tem certeza que deseja excluir este colaborador?"
+        )
+
+        if resposta != QMessageBox.Yes:
+            return  # Usuário cancelou
+
+        try:
+            conn = sqlite3.connect(get_writable_db_path())
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM colaboradores WHERE id = ?", (colaborador_id,))
+            conn.commit()
+            conn.close()
+
+            QMessageBox.information(
+                self, "Excluído", "Colaborador excluído com sucesso."
+            )
+            self.carregar_dados()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Ocorreu um erro ao excluir: {e}")
+
     def exportar_pdf(self):
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM colaboradores")
         dados = cursor.fetchall()

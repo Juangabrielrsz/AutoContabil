@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
 )
 import sqlite3
+from app.utils import get_writable_db_path
 
 
 class TabsRelatorios(QWidget):
@@ -38,7 +39,8 @@ class TabsRelatorios(QWidget):
 
     def atualizar_contadores(self):
         try:
-            conn = sqlite3.connect("app/database.db")
+
+            conn = sqlite3.connect(get_writable_db_path())
             cursor = conn.cursor()
 
             # Contar colaboradores

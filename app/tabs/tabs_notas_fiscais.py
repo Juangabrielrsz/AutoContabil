@@ -18,6 +18,7 @@ import os
 import xml.etree.ElementTree as ET
 import sqlite3
 import openpyxl
+from app.utils import get_writable_db_path
 
 
 class TabsNotasFiscais(QWidget):
@@ -94,7 +95,7 @@ class TabsNotasFiscais(QWidget):
             QMessageBox.warning(self, "Aviso", "Nenhum arquivo carregado.")
             return
 
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
 
         duplicadas = []
@@ -168,7 +169,8 @@ class TabsNotasFiscais(QWidget):
 
     def exportar_para_excel(self):
         try:
-            conn = sqlite3.connect("app/database.db")
+
+            conn = sqlite3.connect(get_writable_db_path())
             cursor = conn.cursor()
             cursor.execute(
                 "SELECT arquivo, emitente, cnpj, numero, data_emissao, valor_total FROM notas_fiscais"
@@ -229,7 +231,7 @@ class TabsNotasFiscais(QWidget):
             query += " AND emitente LIKE ?"
             params.append(f"%{emitente}%")
 
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
         cursor.execute(query, params)
         resultados = cursor.fetchall()
@@ -275,7 +277,7 @@ class TabsNotasFiscais(QWidget):
         numero = self.tabela_resultado.item(row, 3).text()
         data_emissao = self.tabela_resultado.item(row, 4).text()
 
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -316,7 +318,7 @@ class TabsNotasFiscais(QWidget):
         numero = self.tabela_resultado.item(row, 3).text()
         data_emissao = self.tabela_resultado.item(row, 4).text()
 
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
         cursor.execute(
             """

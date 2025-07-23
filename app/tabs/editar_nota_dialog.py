@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (
     QMessageBox,
 )
 import sqlite3
+from app.utils import get_writable_db_path
 
 
 class EditarNotaDialog(QDialog):
@@ -48,7 +49,8 @@ class EditarNotaDialog(QDialog):
 
     def salvar_edicao(self):
         try:
-            conn = sqlite3.connect("app/database.db")
+
+            conn = sqlite3.connect(get_writable_db_path())
             cursor = conn.cursor()
             cursor.execute(
                 """

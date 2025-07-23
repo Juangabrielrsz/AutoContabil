@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import QDate, QLocale, Qt
 import sqlite3
 from PyQt5.QtWidgets import QCheckBox
+from app.utils import get_writable_db_path
 
 
 class ColaboradorDialog(QDialog):
@@ -129,7 +130,7 @@ class ColaboradorDialog(QDialog):
             self.input_obs.toPlainText(),
         )
 
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
 
         if self.colaborador:

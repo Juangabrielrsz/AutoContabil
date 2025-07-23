@@ -15,10 +15,8 @@ from PyQt5.QtCore import QDate
 from PyQt5.QtWidgets import QSizePolicy
 from app.tabs.gerar_pdf_holerite import gerar_pdf_holerite
 import sqlite3
-import pandas as pd
-from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import mm
+from app.utils import get_writable_db_path
 
 
 class FolhasGeradasDialog(QDialog):
@@ -52,7 +50,7 @@ class FolhasGeradasDialog(QDialog):
         self.carregar_dados()
 
     def carregar_dados(self):
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -147,7 +145,7 @@ class FolhasGeradasDialog(QDialog):
             data_pagamento = input_data.date().toString("yyyy-MM-dd")
             liquido = salario + beneficios - descontos
 
-            conn = sqlite3.connect("app/database.db")
+            conn = sqlite3.connect(get_writable_db_path())
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -172,7 +170,8 @@ class FolhasGeradasDialog(QDialog):
             self, "Confirmação", "Deseja excluir esta folha?"
         )
         if confirm == QMessageBox.Yes:
-            conn = sqlite3.connect("app/database.db")
+
+            conn = sqlite3.connect(get_writable_db_path())
             cursor = conn.cursor()
             cursor.execute("DELETE FROM folha_pagamento WHERE id = ?", (folha_id,))
             conn.commit()
@@ -182,7 +181,7 @@ class FolhasGeradasDialog(QDialog):
 
     def exportar_pdf(self, folha):
         # Obter dados adicionais do colaborador
-        conn = sqlite3.connect("app/database.db")
+        conn = sqlite3.connect(get_writable_db_path())
         cursor = conn.cursor()
         cursor.execute(
             "SELECT empresa, escritorio, data_admissao, cargo FROM colaboradores WHERE nome = ? AND cpf = ?",
