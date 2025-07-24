@@ -1,22 +1,22 @@
 # 🧾 AutoContabil
 
-**AutoContabil** é uma aplicação desktop de automação contábil desenvolvida em **Python (PyQt5)** com funcionalidades voltadas para gestão de colaboradores, geração de folhas de pagamento e holerites.  
+**AutoContabil** é uma aplicação desktop de automação contábil desenvolvida em **Python (PyQt5)**, com foco em folha de pagamento, holerites e relatórios para contadores e escritórios de contabilidade.
 
 ---
 
 ## 🛠️ Funcionalidades
 
-- Cadastro, edição e exclusão de colaboradores
-- Geração automática de folha de pagamento
-- Emissão de holerite em PDF (duas vias)
-- Cálculo automático de INSS, IRRF e FGTS
-- Regras aplicadas:
-  - 🥗 Vale-refeição: desconto máximo de **20%**
-  - 🚍 Vale-transporte: desconto máximo de **6% do salário**
-- Relatórios com número de colaboradores e MEIs
-- Filtros avançados por Nome/CPF e por Empresa
-- Exportação para **Excel** e **PDF**
-- Instalador para Windows com atalho na área de trabalho
+- ✅ Cadastro, edição e exclusão de colaboradores
+- 📄 Geração automática de folha de pagamento
+- 🧾 Emissão de holerite em **PDF com duas vias**
+- ⚙️ Cálculo automático de **INSS**, **IRRF** e **FGTS**
+- 🧮 Regras de desconto:
+  - 🥗 Vale-refeição: até **20%**
+  - 🚍 Vale-transporte: até **6% do salário**
+- 📊 Relatórios por empresa, CPF, nome e MEI
+- 📤 Exportação para **Excel (.xlsx)** e **PDF**
+- 🖥️ Instalador com atalho na área de trabalho
+- 🛡️ Compatível com Windows 10/11
 
 ---
 
@@ -24,34 +24,30 @@
 
 ### 1. Baixe o Instalador
 
-> Arquivo: `AutoContabilInstaller.exe`
-
-Disponibilize o instalador para seus usuários (via Google Drive, Dropbox ou site institucional).
+> Arquivo: `AutoContabilInstaller.exe`  
+> Recomendação: disponibilize o arquivo via **Google Drive** ou **seu site**.
 
 ### 2. Execute o Instalador
 
 - Clique duas vezes em `AutoContabilInstaller.exe`
-- O sistema será instalado em `C:\Program Files\AutoContabil`
+- Será instalado em: `C:\Program Files (x86)\AutoContabil`
 - Um **atalho será criado na área de trabalho**
-- O programa será iniciado automaticamente após a instalação
+- O sistema será iniciado automaticamente
+
+> ⚠️ **Importante:** Execute como **Administrador** se for necessário salvar PDFs ou acessar arquivos do sistema.
 
 ---
 
 ## 💻 Executar em Ambiente de Desenvolvimento
 
-### Pré-requisitos
+### Requisitos
 
-- Python 3.10+
-- Instale as dependências:
+- Python 3.10 ou superior
+- Instalar dependências:
 
 ```bash
 pip install -r requirements.txt
-```
 
-### Executar o app:
-
-```bash
-python run.py
 ```
 
 ---
@@ -114,35 +110,9 @@ Name: "desktopicon"; Description: "Criar atalho na área de trabalho"; GroupDesc
 [Run]
 Filename: "{app}\AutoContabil.exe"; Description: "Executar AutoContabil"; Flags: nowait postinstall skipifsilent
 Filename: "{tmp}\VC_redist.x64.exe"; Parameters: "/quiet /norestart"; Flags: waituntilterminated
-```
-
----
-
-## 📁 Estrutura do Projeto
 
 ```
-automacao_contabil/
-├── app/
-│   ├── database.db
-│   └── tabs/
-│       ├── colaborador_dialog.py
-│       ├── folhas_geradas_dialog.py
-│       ├── gerar_pdf_holerite.py
-│       ├── tabs_dp.py
-│       ├── tabs_relatorios.py
-│       └── modelos/
-│           └── holerite_modelo_em_branco.pdf
-├── dist/
-│   └── AutoContabil.exe
-├── installer/
-│   ├── icon.ico
-│   ├── VC_redist.x64.exe
-│   └── AutoContabilInstaller.exe
-├── run.py
-└── README.md
-```
 
----
 
 ## 👤 Autor
 
