@@ -1,11 +1,11 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from PyQt5.QtWidgets import QFileDialog
-import fitz  # PyMuPDF
 import os
 from reportlab.pdfgen import canvas
 from datetime import datetime
-import sys
+from app.utils import get_pdf_model_path
+import fitz  # PyMuPDF
 
 
 def mm_to_pt(x_mm, y_mm):
@@ -14,16 +14,8 @@ def mm_to_pt(x_mm, y_mm):
     return x, y
 
 
-def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except AttributeError:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
-
-
 def gerar_pdf_holerite(self, folha):
-    MODELO_PDF = resource_path("app/tabs/modelos/holerite_modelo_em_branco.pdf")
+    MODELO_PDF = get_pdf_model_path()
     temp_overlay_path = "overlay_temp.pdf"
 
     nome_arquivo_sugerido = (
@@ -40,7 +32,7 @@ def gerar_pdf_holerite(self, folha):
     def desenhar_holerite(offset_y):
         c.setFont("Times-Roman", 11)
         c.drawString(*mm_to_pt(4, 5 + offset_y), folha["empresa"])
-        c.drawString(*mm_to_pt(4, 9 + offset_y), "CNPJ: 00.000.000/0001-00")
+        c.drawString(*mm_to_pt(4, 9 + offset_y), folha["cnpj_empresa"])
         c.drawString(*mm_to_pt(70, 8 + offset_y), "CC: GERAL")
         c.drawString(*mm_to_pt(73, 12 + offset_y), "Mensalista")
         c.drawString(*mm_to_pt(150, 8 + offset_y), "Folha Mensal")

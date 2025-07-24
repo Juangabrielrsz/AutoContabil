@@ -13,7 +13,7 @@ SolidCompression=yes
 [Files]
 Source: "..\dist\AutoContabil.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "app\database.db"; DestDir: "{app}\app"; Flags: ignoreversion
-Source: "modelos\holerite_modelo_em_branco.pdf"; DestDir: "{app}\app\tabs\modelos"; Flags: ignoreversion
+Source: "C:\Users\juang\OneDrive\Área de Trabalho\automacao_contabil\app\tabs\modelos\holerite_modelo_em_branco.pdf"; DestDir: "{app}\app\tabs\modelos"; Flags: ignoreversion
 Source: "vcredist_x64.exe"; DestDir: "{tmp}"; Flags: ignoreversion
 
 [Icons]

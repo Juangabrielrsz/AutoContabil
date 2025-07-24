@@ -316,6 +316,7 @@ class TabsDP(QWidget):
             folha_dict = {
                 "nome": colaborador[1],
                 "cpf": colaborador[2],
+                "cnpj_empresa": colaborador[3],
                 "cargo": colaborador[6],
                 "salario_base": salario_base,
                 "data_pagamento": data_pag,

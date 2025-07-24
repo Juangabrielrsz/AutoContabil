@@ -23,3 +23,16 @@ def get_writable_db_path():
         shutil.copy(resource_path("app/database.db"), db_path)
 
     return db_path
+
+
+def get_pdf_model_path():
+    try:
+        # Quando o executável é gerado com PyInstaller (dist/AutoContabil.exe)
+        base_path = sys._MEIPASS
+    except AttributeError:
+        # Quando instalado via Inno Setup
+        base_path = os.path.dirname(sys.executable)
+
+    return os.path.join(
+        base_path, "app", "tabs", "modelos", "holerite_modelo_em_branco.pdf"
+    )
